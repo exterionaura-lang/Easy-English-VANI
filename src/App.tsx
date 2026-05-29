@@ -183,7 +183,11 @@ const getLangSpeechCode = (langCode: string): string => {
 };
 export default function App() {
   // Screens: "onboarding", "home", "topics", "translate", "call", "chat"
-  const [screen, setScreen] = useState<string>("onboarding");
+  const [screen, setScreen] = useState<string>(() => {
+    const plan = localStorage.getItem("vani_user_plan") || "none";
+    const completedOnboarding = localStorage.getItem("vani_onboarding_completed") === "true";
+    return (plan !== "none" || completedOnboarding) ? "home" : "onboarding";
+  });
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [translatorOpen, setTranslatorOpen] = useState<boolean>(false);
   const [onboardingGoal, setOnboardingGoal] = useState<string>("interview");
@@ -191,6 +195,94 @@ export default function App() {
   // Advanced States & VANI Engine Configurations
   const [userName, setUserName] = useState<string>("Learner");
   const [isPremium, setIsPremium] = useState<boolean>(false);
+  
+  // Subscription tier root state variables
+  const [userPlan, setUserPlan] = useState<string>(() => {
+    return localStorage.getItem("vani_user_plan") || "none";
+  });
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number>(() => {
+    const saved = localStorage.getItem("vani_trial_days_left");
+    return saved ? parseInt(saved, 10) : 7;
+  });
+  const [trialStartDate, setTrialStartDate] = useState<number | null>(() => {
+    const saved = localStorage.getItem("vani_trial_start_date");
+    return saved ? parseInt(saved, 10) : null;
+  });
+  const [trialExpired, setTrialExpired] = useState<boolean>(() => {
+    return localStorage.getItem("vani_trial_expired") === "true";
+  });
+  const [sessionMsgCount, setSessionMsgCount] = useState<number>(0);
+
+  // Access gate functions
+  function canAccess(topicIndex: number) {
+    if (userPlan === "premium" || userPlan === "pro") return true;
+    if (userPlan === "monthly") return topicIndex < 28;
+    if (userPlan === "trial" && !trialExpired)
+      return topicIndex < 1; // Only "Introduce Yourself" (id 1, topicIndex 0) is open
+    return false;
+  }
+
+  function canUseVoiceStation() {
+    return userPlan === "monthly" ||
+           userPlan === "premium" ||
+           userPlan === "pro";
+  }
+
+  function canSendMessage() {
+    if (userPlan === "premium" ||
+        userPlan === "monthly" ||
+        userPlan === "pro") return true;
+    if (userPlan === "trial" && !trialExpired)
+      return sessionMsgCount < 5;
+    return false;
+  }
+
+  // Auto synchronizations for persistent local storage & backward compatibility
+  useEffect(() => {
+    localStorage.setItem("vani_user_plan", userPlan);
+    setIsPremium(userPlan === "premium" || userPlan === "pro");
+    setActivePlan(userPlan === "pro" ? "pro" : userPlan === "premium" ? "premium" : userPlan === "monthly" ? "basic" : "none" as any);
+  }, [userPlan]);
+
+  useEffect(() => {
+    localStorage.setItem("vani_trial_days_left", String(trialDaysLeft));
+  }, [trialDaysLeft]);
+
+  useEffect(() => {
+    if (trialStartDate !== null) {
+      localStorage.setItem("vani_trial_start_date", String(trialStartDate));
+    } else {
+      localStorage.removeItem("vani_trial_start_date");
+    }
+  }, [trialStartDate]);
+
+  useEffect(() => {
+    localStorage.setItem("vani_trial_expired", String(trialExpired));
+  }, [trialExpired]);
+
+  // Trial expiry check on every app open & Web Speech API pre-load optimization
+  useEffect(() => {
+    if (trialStartDate && userPlan === "trial") {
+      const ms = Date.now() - trialStartDate;
+      const days = ms / (1000 * 60 * 60 * 24);
+      if (days >= 7) {
+        setTrialExpired(true);
+      }
+    }
+
+    // Pre-trigger Web Speech API voice loading so speech generation is purely instantaneous
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      const onVoicesChanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
+      return () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+      };
+    }
+  }, []);
+
   const [trialTimeLeft, setTrialTimeLeft] = useState<number>(604799); // 7 days in seconds
   const [streak, setStreak] = useState<number>(6);
   const [xp, setXp] = useState<number>(420);
@@ -230,6 +322,11 @@ export default function App() {
   const [paymentSuccessTriggered, setPaymentSuccessTriggered] = useState<boolean>(false);
   const [reportOverlayOpen, setReportOverlayOpen] = useState<boolean>(false);
   const [reportTab, setReportTab] = useState<'performance' | 'account'>('performance');
+  
+  // Custom switch for lightning-fast voice chat response (0ms delay local synthesis vs cloud AI model)
+  const [useInstantTurboVoice, setUseInstantTurboVoice] = useState<boolean>(() => {
+    return localStorage.getItem("vani_use_instant_voice") !== "false";
+  });
   
   // Custom Step-by-Step Onboarding states
   const [onboardingSubStep, setOnboardingSubStep] = useState<string>("welcome"); // welcome, phone, otp, trial_offer, upi_payment, success
@@ -477,12 +574,23 @@ export default function App() {
     // start animated captions
     startCaptionAnimation(text);
 
+    if (useInstantTurboVoice) {
+      playSpeechSynthesisFallback(text);
+      setTtsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const abortTimeoutId = setTimeout(() => controller.abort(), 1200); // 1.2s timeout to guarantee instant speaking fallback if API is slow
+
     try {
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, tone: emotionalTone }),
+        signal: controller.signal,
       });
+      clearTimeout(abortTimeoutId);
 
       if (!response.ok) throw new Error("TTS synthesize failed");
       const data = await response.json();
@@ -508,7 +616,7 @@ export default function App() {
         playSpeechSynthesisFallback(text);
       }
     } catch (err) {
-      console.warn("Server TTS failed, falling back to Web Speech API:", err);
+      console.warn("Server TTS failed or took too long, falling back to Web Speech API:", err);
       playSpeechSynthesisFallback(text);
     } finally {
       setTtsLoading(false);
@@ -573,12 +681,24 @@ export default function App() {
   };
 
   const handleBillingSuccess = (planName: string) => {
-    setIsPremium(true);
-    let planId: 'basic' | 'premium' | 'pro' = 'premium';
-    if (planName === "Basic") planId = 'basic';
-    if (planName === "Pro Master") planId = 'pro';
+    let planId: string = 'premium';
+    if (planName === "Trial") {
+      planId = 'trial';
+      setTrialStartDate(Date.now());
+      setTrialDaysLeft(7);
+      setTrialExpired(false);
+      setSessionMsgCount(0);
+    } else if (planName === "Monthly" || planName === "Basic") {
+      planId = 'monthly';
+    } else if (planName === "Premium") {
+      planId = 'premium';
+    } else if (planName === "Pro" || planName === "Pro Master" || planName === "ProMaster") {
+      planId = 'pro';
+    }
     
-    setActivePlan(planId);
+    setUserPlan(planId);
+    setIsPremium(planId === 'premium' || planId === 'pro');
+    setActivePlan(planId as any);
     setActiveBillingStep('success');
     
     // Confetti celebration
@@ -591,7 +711,7 @@ export default function App() {
       });
     } catch(e){}
 
-    const audioMsg = `Ami VANI! Congratulations, ${userName}! Your Premium active trial has been successfully registered on our UPI network. Let's speak english with natural confidence together every single day!`;
+    const audioMsg = `Ami VANI! Congratulations, ${userName}! Your ${planId.toUpperCase()} tier fluency pass has been successfully registered on our UPI network. Let's speak English with natural confidence together every single day!`;
     setTimeout(() => {
       playTTS(audioMsg, 999);
     }, 600);
@@ -625,8 +745,27 @@ export default function App() {
     if (e) e.preventDefault();
     if (!chatInput.trim() || loadingReply) return;
 
+    if (!canSendMessage()) {
+      let limitMsg = "You've reached your subscription tier message limit. Upgrade to a Monthly or Premium plan to enjoy unlimited chats with Coach VANI!";
+      if (userPlan === "trial") {
+        if (trialExpired) {
+          limitMsg = "Your 7-day VIP Access Trial has expired. Upgrade your plan to continue practicing English with Coach VANI!";
+        } else {
+          limitMsg = "You've reached your trial limit of 5 messages per session. Upgrade to Monthly or Premium for unlimited conversation!";
+        }
+      } else if (userPlan === "none") {
+        limitMsg = "You don't have an active plan or trial. Upgrade now or start your ₹7 Trial to begin chatting!";
+      }
+      playTTS(limitMsg, 8479);
+      alert(`⚠️ Subscription Limit Reached\n\n${limitMsg}`);
+      setSelectedPlanPrice(7);
+      setBillingOverlayOpen(true);
+      return;
+    }
+
     const userText = chatInput.trim();
     setChatInput("");
+    setSessionMsgCount(prev => prev + 1);
 
     // Add user message to log
     const updatedMessages: Message[] = [
@@ -710,6 +849,33 @@ export default function App() {
   };
 
   const openConversationTopic = (topic: Topic) => {
+    // If the topic is a premium or subscription-gated block, prompt upgrade
+    if (topic.id > 0 && !canAccess(topic.id - 1)) {
+      let suggestPrice = 99;
+      if (topic.id > 28) {
+        suggestPrice = 249;
+      } else if (userPlan === "none") {
+        suggestPrice = 7;
+      }
+      setSelectedPlanPrice(suggestPrice);
+      
+      let reason = "This scenario is locked.";
+      if (userPlan === "none") {
+        reason = "Upgrade now to a premium status or choose our 7-day VIP Trial for ₹7 to instantly unlock the 'Introduce Yourself' practice module!";
+      } else if (userPlan === "trial" && trialExpired) {
+        reason = "Your 7-day active trial has expired! Please select a subscription tier to continue your conversational training.";
+      } else if (userPlan === "trial") {
+        reason = "Only the 'Introduce Yourself' module is open on the Trial plan. Upgrade to Monthly Basic or Premium VIP plans to unlock more scenarios!";
+      } else if (userPlan === "monthly") {
+        reason = "This scenario requires upgrading to the Premium tier to unlock all 40+ dynamic scenarios!";
+      }
+      
+      playTTS(reason, 234);
+      alert(`🔒 Tier Restricted Module\n\n${reason}`);
+      setBillingOverlayOpen(true);
+      return;
+    }
+
     if (topic.locked) {
       alert("This topic is locked! Complete active topics to advance.");
       return;
@@ -879,6 +1045,20 @@ export default function App() {
   };
 
   const startVoiceCall = () => {
+    if (!canUseVoiceStation()) {
+      let limitMsg = "VANI Voice calling practice is blocked under your current subscription tier. Upgrade to Monthly Basic or Premium plan for full voice calling access!";
+      if (userPlan === "trial") {
+        limitMsg = "Speaking on the dynamic Voice Dialer station is blocked during the active Trial tier. Upgrade to a Monthly or Premium plan to call Coach VANI!";
+      } else if (userPlan === "none") {
+        limitMsg = "You don't have an active plan or trial. Upgrade to Monthly or Premium to speak live with Coach VANI!";
+      }
+      playTTS(limitMsg, 811);
+      alert(`🔒 Voice Connection Blocked\n\n${limitMsg}`);
+      setSelectedPlanPrice(99);
+      setBillingOverlayOpen(true);
+      return;
+    }
+
     setCallActive(true);
     setCallStatusText("Connecting...");
     setCallUserSpokenText("");
@@ -1192,9 +1372,10 @@ export default function App() {
                   
                   <div className="space-y-2.5">
                     {[
-                      { price: 7, plan: 'Trial', header: '🎟️ VIP Access Trial (First 7 days)', sub: 'Pay just ₹7 network trial, renews ₹149/mo' },
-                      { price: 149, plan: 'Premium', header: '⚡ Pro Fluency Master Match', sub: '₹149 / billed monthly. Unlimited dialer practice' },
-                      { price: 299, plan: 'Pro', header: '👨‍👩‍👦 Family Learning Club Suite', sub: '₹299 / 6 months profile synchronization' }
+                      { price: 7, plan: 'Trial', header: '🎟️ VIP Access Trial (7 days)', sub: 'Pay ₹7 today. Unlocks only the "Introduce Yourself" topic and max 5 text messages.' },
+                      { price: 99, plan: 'Monthly', header: '⚡ Monthly Basic Fluency Pass', sub: '₹99 / monthly. Unlocks Topics 1–28, unlimited VANI text chats.' },
+                      { price: 249, plan: 'Premium', header: '👑 VIP Premium Fluency Tier', sub: '₹249 / monthly. All 40 topics open, unlimited VANI voice dialer, IELTS & coaching modules.' },
+                      { price: 449, plan: 'Pro', header: '🏆 Lifetime PRO MASTER Access', sub: '₹449 lifetime. VIP interview streams, priority routes, priority queues.' }
                     ].map((pOption) => (
                       <button
                         id={`btn-plan-${pOption.plan}`}
@@ -1237,7 +1418,7 @@ export default function App() {
                     onClick={() => setActiveBillingStep('vpa')}
                     className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-98 text-black font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-md"
                   >
-                    Proceed with Plan (₹{selectedPlanPrice} Trial)
+                    Proceed with Selected Plan (₹{selectedPlanPrice})
                   </button>
                 </div>
               )}
@@ -1315,7 +1496,7 @@ export default function App() {
                         setSubmittingPayment(true);
                         setTimeout(() => {
                           setSubmittingPayment(false);
-                          handleBillingSuccess(selectedPlanPrice === 7 ? "Basic" : selectedPlanPrice === 149 ? "Premium" : "Pro Master");
+                          handleBillingSuccess(selectedPlanPrice === 7 ? "Trial" : selectedPlanPrice === 99 ? "Monthly" : selectedPlanPrice === 249 ? "Premium" : "Pro");
                         }, 1300);
                       }}
                       disabled={submittingPayment}
@@ -1713,64 +1894,98 @@ export default function App() {
                   <div className="space-y-4">
                     <h5 className="text-[10px] uppercase font-black text-stone-400 tracking-wider">Present Subscription Status</h5>
                     
-                    <div className={`p-5 rounded-3xl border relative overflow-hidden transition-all duration-300 ${
-                      isPremium 
-                        ? "bg-slate-900 border-stone-800 text-white shadow-md" 
-                        : "bg-white border-stone-200 text-stone-800 shadow-xs"
-                    }`}>
-                      {isPremium && (
-                        <div className="absolute right-0 top-0 bg-amber-500 text-stone-950 text-[8px] font-black px-4 py-1.5 rounded-bl-xl uppercase tracking-widest font-mono">
-                          VIP PREMIUM Active
-                        </div>
-                      )}
-                      
+                    <div className="bg-white border border-stone-200 p-5 rounded-3xl shadow-xs text-stone-800 space-y-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl select-none">{isPremium ? "👑" : "💎"}</span>
-                        <div>
-                          <h4 className={`text-base font-black ${isPremium ? "text-yellow-400" : "text-stone-900"}`}>
-                            {isPremium ? "VIP Lifetime Premium Plan" : "Free Basic Practice Tier"}
+                        <span className="text-3xl select-none">
+                          {userPlan === "pro" ? "🏆" : userPlan === "premium" ? "👑" : userPlan === "monthly" ? "⚡" : userPlan === "trial" ? "🎟️" : "💎"}
+                        </span>
+                        <div className="flex-1 text-left">
+                          <h4 className="text-sm font-black text-stone-900 capitalize leading-tight">
+                            {userPlan === "pro" ? "PRO MASTER Lifetime Access" : `${userPlan} Plan`}
                           </h4>
-                          <p className={`text-[11px] ${isPremium ? "text-stone-300" : "text-stone-500"} mt-0.5 font-bold`}>
-                            {isPremium ? "Unlimited dynamic voice coaching unlocked!" : "Limited speaking cycles per day"}
+                          <p className="text-[11px] text-stone-500 font-bold mt-0.5 leading-normal">
+                            {userPlan === "none" && "Limited Practice Tier. Upgrade to unlock all features."}
+                            {userPlan === "trial" && (trialExpired ? "Expired Active Trial" : `Active VIP Trial (${trialDaysLeft} Days Remaining)`)}
+                            {userPlan === "monthly" && "Basic Monthly Tier — Unlimited texts unlocked!"}
+                            {userPlan === "premium" && "VIP Premium Fluency Tier — All voice and text unlocked!"}
+                            {userPlan === "pro" && "High Priority VIP queue + advanced coaching line"}
                           </p>
                         </div>
+                        <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-lg text-[9px] uppercase font-extrabold tracking-wider shrink-0">
+                          {userPlan === "none" ? "Free" : userPlan}
+                        </span>
                       </div>
 
-                      <div className={`mt-4 pt-4 border-t ${isPremium ? "border-white/10 text-stone-300" : "border-stone-150 text-stone-500"} text-xs leading-relaxed space-y-1.5 font-semibold`}>
-                        <p className="flex justify-between items-center">
-                          <span>Unlimited speech recognition:</span>
-                          <span className={isPremium ? "text-emerald-400 font-bold" : "text-stone-400 font-bold"}>{isPremium ? "✓ Enabled" : "✗ Daily Limit Applies"}</span>
-                        </p>
-                        <p className="flex justify-between items-center">
-                          <span>Accent Tuning & Grammar Feedback:</span>
-                          <span className="text-emerald-400 font-bold">✓ Enabled</span>
-                        </p>
-                        <p className="flex justify-between items-center">
-                          <span>Secure Cloud Database backup:</span>
-                          <span className={isOtpLoggedIn ? "text-emerald-400 font-bold" : "text-stone-400 font-bold"}>{isOtpLoggedIn ? "✓ Cloud Backed" : "✗ Offline Backup only"}</span>
-                        </p>
-                        <p className="flex justify-between items-center">
-                          <span>Personal Coach support line:</span>
-                          <span className={isPremium ? "text-emerald-400 font-bold" : "text-stone-400 font-bold"}>{isPremium ? "✓ VIP Response Priority" : "✗ Basic Queue"}</span>
-                        </p>
+                      <div className="pt-4 border-t border-stone-150 text-[10.5px] leading-relaxed space-y-2 font-semibold text-stone-500 text-left">
+                        <div className="flex justify-between items-center">
+                          <span>Allowed General Topics (Scenario Drawer):</span>
+                          <span className="text-stone-800 font-extrabold">
+                            {userPlan === "pro" || userPlan === "premium" ? "All 40 Topics" : userPlan === "monthly" ? "28 Topics" : userPlan === "trial" && !trialExpired ? "1 Topic ('Introduce Yourself')" : "0 Topics (Locked)"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>VANI Voice Calling capability:</span>
+                          <span className={canUseVoiceStation() ? "text-emerald-600 font-extrabold" : "text-amber-650 font-extrabold"}>
+                            {canUseVoiceStation() ? "✓ Unlocked & Priorities Ready" : "✗ Blocked — Upgrade to Call VANI"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Text Chat Daily Message Count:</span>
+                          <span className="text-stone-800 font-extrabold">
+                            {userPlan === "trial" ? `${sessionMsgCount} / 5 messages sent` : (userPlan === "none" ? "Locked" : "✓ Unlimited messages Enabled")}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Interactive toggle block so user can toggle subscription easily inside the screen */}
-                      <div className="mt-5 flex gap-2 pt-1">
-                        <button
-                          onClick={() => {
-                            setIsPremium(!isPremium);
-                            setTrialTimeLeft(isPremium ? 0 : 604800);
-                            playTTS(isPremium ? "Now practicing in free tier" : "Coaching trial activated successfully!", 123);
-                          }}
-                          className={`w-full py-3 font-black text-xs text-center rounded-xl transition active:scale-97 hover:shadow-md ${
-                            isPremium 
-                              ? "bg-slate-800 hover:bg-slate-755 border border-slate-700 text-stone-300" 
-                              : "bg-rose-500 hover:bg-rose-600 text-white"
-                          }`}
-                        >
-                          {isPremium ? "Simulate Go Free Basic Tier" : "Upgrade Status instantly with VANI VIP"}
-                        </button>
+                      {/* Simulator togglers for testing all plan permutations seamlessly */}
+                      <div className="pt-3.5 border-t border-stone-150 space-y-2 text-left bg-stone-50/50 p-3 rounded-2xl">
+                        <p className="text-[8.5px] uppercase font-black text-stone-400 tracking-wider">DEV SIMULATION: SWITCH SUBSCRIPTION TIER</p>
+                        <div className="grid grid-cols-5 gap-1">
+                          {[
+                            { id: "None", val: "none" },
+                            { id: "Trial", val: "trial" },
+                            { id: "Monthly", val: "monthly" },
+                            { id: "Premium", val: "premium" },
+                            { id: "Pro", val: "pro" }
+                          ].map((planOpt) => (
+                            <button
+                              key={planOpt.id}
+                              onClick={() => {
+                                setUserPlan(planOpt.val);
+                                if (planOpt.val === "trial") {
+                                  setTrialStartDate(Date.now() - 1); // active start date
+                                  setTrialDaysLeft(7);
+                                  setTrialExpired(false);
+                                  setSessionMsgCount(0);
+                                }
+                                playTTS(`Switched to simulated ${planOpt.val} subscription tier.`, 9);
+                              }}
+                              className={`py-1 text-[8px] font-black uppercase text-center rounded-lg border transition active:scale-95 ${
+                                userPlan === planOpt.val 
+                                  ? "bg-stone-900 text-white border-stone-950 shadow-xxs" 
+                                  : "bg-white border-stone-200 text-stone-500 hover:bg-stone-100"
+                              }`}
+                            >
+                              {planOpt.id}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        {userPlan === "trial" && (
+                          <div className="mt-2 flex items-center justify-between border-t border-stone-150 pt-1.5">
+                            <span className="text-[8.5px] font-bold text-stone-400 uppercase">Trial Expiry simulation</span>
+                            <button
+                              onClick={() => {
+                                setTrialExpired(true);
+                                setTrialDaysLeft(0);
+                                playTTS("Simulated trial expiry. Topic access now locked.", 51);
+                              }}
+                              className="px-2 py-0.5 bg-red-50 hover:bg-red-100 text-red-650 rounded border border-red-200 text-[8.5px] font-black uppercase active:scale-95 transition"
+                            >
+                              Expire Trial Now
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2216,6 +2431,8 @@ export default function App() {
 
                   <button
                     onClick={() => {
+                      localStorage.setItem("vani_onboarding_completed", "true");
+                      setUserPlan("none");
                       setIsPremium(false);
                       setScreen("home");
                       playTTS("Welcome to Easy English. You are now entered with Free basic limits. Upgrade to Premium anytime from your home dashboard.", 999);
@@ -2309,7 +2526,12 @@ export default function App() {
                       setTimeout(() => {
                         setSubmittingPayment(false);
                         setWaveHeaving(false);
-                        setIsPremium(true);
+                        setUserPlan("trial");
+                        setTrialStartDate(Date.now());
+                        setTrialDaysLeft(7);
+                        setTrialExpired(false);
+                        setSessionMsgCount(0);
+                        setIsPremium(false); // set to false because trial is not technically the VIP master plan, but rather trial which opens Introduce Yourself and 5 msgs
                         setTrialTimeLeft(604800); // Reset trial countdown to full 7 days
                         setOnboardingSubStep("success");
                         playTTS("Congratulations! Your seven day premium trial has been successfully activated. Unlock unlimited conversation speaking.", 999);
@@ -2397,6 +2619,7 @@ export default function App() {
                 <div className="pt-2">
                   <button
                     onClick={() => {
+                      localStorage.setItem("vani_onboarding_completed", "true");
                       setScreen("home");
                     }}
                     className="w-full py-4 bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 hover:opacity-95 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition flex items-center justify-center gap-1.5"
@@ -2438,7 +2661,7 @@ export default function App() {
                 <div>
                   <h4 className="font-black text-stone-800 text-[10px] tracking-wide uppercase leading-none">VIP Premium Status</h4>
                   <p className="text-[10px] text-stone-500 mt-1 leading-snug">
-                    {isPremium ? "Premium Active! Unlimited speech and dialogues." : "Free basic tier. Upgrade to unlock all exercises."}
+                    {userPlan === "trial" ? "🎁 7-Day Active Trial!" : (isPremium ? "Premium Active! Unlimited speech and dialogues." : "Free basic tier. Upgrade to unlock all exercises.")}
                   </p>
                 </div>
               </div>
@@ -2452,6 +2675,53 @@ export default function App() {
               >
                 {isPremium ? "Go Free" : "Go VIP"}
               </button>
+            </div>
+
+            {/* VANI Turbo / High Fidelity speaking switcher */}
+            <div className="p-3 bg-white border border-stone-200 rounded-2xl shadow-xxs text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 bg-rose-50 border border-rose-100 text-rose-500 rounded-xl text-xs select-none">⚡</span>
+                  <div>
+                    <h4 className="font-black text-stone-800 text-[10px] tracking-wide uppercase leading-none">VANI Speaking Speed</h4>
+                    <p className="text-[9.5px] text-stone-500 mt-1.5 leading-tight">
+                      {useInstantTurboVoice 
+                        ? "⚡ Turbo Engine: INSTANT responses, 0ms lag!" 
+                        : "🎙️ AI High-Fidelity: Premium synthesis audio."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 bg-stone-50 border border-stone-250/20 p-1 rounded-xl self-end sm:self-auto shrink-0 font-sans">
+                  <button
+                    onClick={() => {
+                      setUseInstantTurboVoice(true);
+                      localStorage.setItem("vani_use_instant_voice", "true");
+                      playTTS("Now using VANI Turbo speaking mode. Responses are instant!", 123);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase tracking-tight transition active:scale-95 ${
+                      useInstantTurboVoice 
+                        ? "bg-stone-900 text-white shadow-xxs" 
+                        : "text-stone-500 hover:text-stone-800 hover:bg-stone-100"
+                    }`}
+                  >
+                    Turbo (Instant)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUseInstantTurboVoice(false);
+                      localStorage.setItem("vani_use_instant_voice", "false");
+                      playTTS("Now using High Fidelity speaking mode. Responses are generated with rich premium tone.", 123);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase tracking-tight transition active:scale-95 ${
+                      !useInstantTurboVoice 
+                        ? "bg-stone-900 text-white shadow-xxs" 
+                        : "text-stone-500 hover:text-stone-800 hover:bg-stone-100"
+                    }`}
+                  >
+                    High-Fi AI
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* SECTION: 4 Curated Scenario Topics for Homepage */}
@@ -2627,20 +2897,24 @@ export default function App() {
                   </div>
                 ) : (
                   filteredHomeTopics.map((t) => {
+                    const isSubLocked = !canAccess(t.id - 1);
+                    const isLocked = t.locked || isSubLocked;
                     return (
                       <div 
                         key={t.id}
-                        onClick={() => !t.locked && openConversationTopic(t)}
+                        onClick={() => openConversationTopic(t)}
                         className={`flex items-center gap-3 bg-white p-2.5 rounded-xl border transition duration-150 relative ${
-                          t.locked 
-                            ? "opacity-55 cursor-not-allowed bg-stone-50 border-stone-150" 
+                          isLocked 
+                            ? "opacity-65 bg-stone-50 border-stone-150 cursor-pointer hover:border-rose-350" 
                             : "border-stone-150 hover:border-rose-300 hover:shadow-xxs cursor-pointer active:scale-99"
                         }`}
                       >
                         <img src={t.img} alt={t.title} className="w-10 h-10 rounded-lg object-cover shrink-0 select-none bg-stone-100" />
                         
                         <div className="flex-1 text-left min-w-0">
-                          <span className="text-[7.5px] font-black text-stone-450 tracking-wider uppercase">{t.cat}</span>
+                          <span className="text-[7.5px] font-black text-stone-450 tracking-wider uppercase">
+                            {isSubLocked ? "🔒 Subscription Locked" : t.cat}
+                          </span>
                           <h4 className="font-extrabold text-[11px] text-stone-850 leading-none truncate mt-0.5">{t.title}</h4>
                           <span className="text-[7.5px] text-[#137333] font-bold block mt-1 uppercase tracking-wide">Theme: {t.theme}</span>
                         </div>
@@ -2648,8 +2922,11 @@ export default function App() {
                         <div className="shrink-0 flex items-center justify-center p-1 select-none text-[9.5px] font-black text-rose-500 pr-2">
                           {t.done ? (
                             <span className="text-emerald-500 font-bold bg-emerald-50 px-1 py-0.5 rounded text-[8px] uppercase">Practiced ✓</span>
-                          ) : t.locked ? (
-                            <Lock className="w-3 text-stone-400" />
+                          ) : isLocked ? (
+                            <div className="flex items-center gap-1 bg-stone-105 text-stone-500 px-1.5 py-0.5 rounded text-[8px] uppercase">
+                              <Lock className="w-2.5 text-stone-400" />
+                              {isSubLocked ? "Unlock" : t.locked ? "Prereq" : "Lock"}
+                            </div>
                           ) : (
                             <span className="flex items-center gap-0.5">
                               Speak
@@ -2833,22 +3110,26 @@ export default function App() {
                 {topics
                   .filter(t => !selectedTheme || t.theme === selectedTheme)
                   .map((t) => {
+                    const isSubLocked = !canAccess(t.id - 1);
+                    const isLocked = t.locked || isSubLocked;
                     return (
                       <div 
                         key={t.id}
-                        onClick={() => !t.locked && openConversationTopic(t)}
+                        onClick={() => openConversationTopic(t)}
                         className={`flex items-center gap-3.5 bg-white p-3 rounded-2xl border transition duration-150 relative ${
-                          t.locked 
-                            ? "opacity-50 border-stone-200 cursor-not-allowed select-none bg-stone-50" 
+                          isLocked 
+                            ? "opacity-65 bg-stone-50 border-stone-205 cursor-pointer hover:border-emerald-350" 
                             : "border-stone-150 shadow-xxs hover:border-emerald-300 hover:shadow-xs cursor-pointer active:scale-99"
                         }`}
                       >
                         <img src={t.img} alt={t.title} className="w-14 h-14 rounded-xl object-cover shrink-0 select-none bg-stone-100" />
                         
                         <div className="flex-1 text-left min-w-0">
-                          <span className="text-[9px] font-black text-stone-400 tracking-wider uppercase">{t.cat}</span>
+                          <span className="text-[9px] font-black text-stone-400 tracking-wider uppercase">
+                            {isSubLocked ? "🔒 Subscription Locked" : t.cat}
+                          </span>
                           <h4 className="font-extrabold text-xs text-stone-850 leading-snug truncate mt-0.5">{t.title}</h4>
-                          <p className="text-[9px] text-stone-500 font-bold tracking-tight uppercase mt-1">Theme: {t.theme}</p>
+                          <p className="text-[9px] text-[#0f5132] font-bold tracking-tight uppercase mt-1">Theme: {t.theme}</p>
                         </div>
 
                         <div className="shrink-0 flex items-center justify-center p-1 select-none">
@@ -2856,8 +3137,11 @@ export default function App() {
                             <div className="w-5.5 h-5.5 rounded-full bg-emerald-500 flex items-center justify-center text-white">
                               <Check className="w-3" />
                             </div>
-                          ) : t.locked ? (
-                            <Lock className="w-3 text-stone-400" />
+                          ) : isLocked ? (
+                            <div className="flex items-center gap-1 bg-stone-100 text-stone-550 px-2 py-0.5 rounded text-[8.5px] uppercase font-black">
+                              <Lock className="w-3 text-stone-400" />
+                              {isSubLocked ? "Unlock" : "Prereq"}
+                            </div>
                           ) : (
                             <ChevronRight className="w-4 h-4 text-stone-400" />
                           )}
