@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Modality, Type } from "@google/genai";
+import { GoogleGenAI, Modality, Type, ThinkingLevel } from "@google/genai";
 
 dotenv.config();
 
@@ -343,40 +343,81 @@ You MUST respond in JSON format conforming to the following structure:
       parts: [{ text: m.content }]
     }));
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: parsedContents,
-      config: {
-        systemInstruction,
-        temperature: 0.25,
-        maxOutputTokens: 200,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            reply: { 
-              type: Type.STRING, 
-              description: "VANI's friendly conversation reply to the user. Keep to 2-3 sentences max and end with a gentle question." 
-            },
-            grammarCorrection: { 
-              type: Type.STRING, 
-              description: "Gentle explanation or helpful edit of user's typing structure. If perfect, compliment them." 
-            },
-            vocabularyBoost: { 
-              type: Type.STRING, 
-              description: "Suggestions using natural Indian/international phrasings or context-relevant vocabulary to level up." 
-            },
-            bilingualTip: { 
-              type: Type.STRING, 
-              description: "Comment on any Indian slang or multilingual expressions used, translating them, otherwise optional." 
-            }
+    let resultText = "";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: parsedContents,
+        config: {
+          systemInstruction,
+          temperature: 0.25,
+          maxOutputTokens: 200,
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.LOW
           },
-          required: ["reply", "grammarCorrection", "vocabularyBoost"]
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              reply: { 
+                type: Type.STRING, 
+                description: "VANI's friendly conversation reply to the user. Keep to 2-3 sentences max and end with a gentle question." 
+              },
+              grammarCorrection: { 
+                type: Type.STRING, 
+                description: "Gentle explanation or helpful edit of user's typing structure. If perfect, compliment them." 
+              },
+              vocabularyBoost: { 
+                type: Type.STRING, 
+                description: "Suggestions using natural Indian/international phrasings or context-relevant vocabulary to level up." 
+              },
+              bilingualTip: { 
+                type: Type.STRING, 
+                description: "Comment on any Indian slang or multilingual expressions used, translating them, otherwise optional." 
+              }
+            },
+            required: ["reply", "grammarCorrection", "vocabularyBoost"]
+          }
         }
-      }
-    });
+      });
+      resultText = response.text || "";
+    } catch (primaryErr: any) {
+      console.warn("Primary model gemini-3.5-flash failed or busy. Attempting fallback to gemini-flash-latest...", primaryErr.message || primaryErr);
+      const fallbackResponse = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: parsedContents,
+        config: {
+          systemInstruction,
+          temperature: 0.25,
+          maxOutputTokens: 200,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              reply: { 
+                type: Type.STRING, 
+                description: "VANI's friendly conversation reply to the user. Keep to 2-3 sentences max and end with a gentle question." 
+              },
+              grammarCorrection: { 
+                type: Type.STRING, 
+                description: "Gentle explanation or helpful edit of user's typing structure. If perfect, compliment them." 
+              },
+              vocabularyBoost: { 
+                type: Type.STRING, 
+                description: "Suggestions using natural Indian/international phrasings or context-relevant vocabulary to level up." 
+              },
+              bilingualTip: { 
+                type: Type.STRING, 
+                description: "Comment on any Indian slang or multilingual expressions used, translating them, otherwise optional." 
+              }
+            },
+            required: ["reply", "grammarCorrection", "vocabularyBoost"]
+          }
+        }
+      });
+      resultText = fallbackResponse.text || "";
+    }
 
-    const resultText = response.text;
     if (!resultText) {
       throw new Error("Empty response from Gemini API.");
     }
@@ -428,28 +469,57 @@ Return a JSON payload with the following structure:
   "pronunciationTip": "A friendly note about pronunciation or emphasis (e.g., 'accentuate the sounds...')"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: `Translate and refine this expression from the source language "${sourceLanguage}": "${text}"`,
-      config: {
-        systemInstruction,
-        temperature: 0.25,
-        maxOutputTokens: 180,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            original: { type: Type.STRING },
-            translatedSimple: { type: Type.STRING },
-            translatedSmart: { type: Type.STRING },
-            pronunciationTip: { type: Type.STRING }
+    let resultText = "";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Translate and refine this expression from the source language "${sourceLanguage}": "${text}"`,
+        config: {
+          systemInstruction,
+          temperature: 0.25,
+          maxOutputTokens: 180,
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.LOW
           },
-          required: ["original", "translatedSimple", "translatedSmart", "pronunciationTip"]
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              original: { type: Type.STRING },
+              translatedSimple: { type: Type.STRING },
+              translatedSmart: { type: Type.STRING },
+              pronunciationTip: { type: Type.STRING }
+            },
+            required: ["original", "translatedSimple", "translatedSmart", "pronunciationTip"]
+          }
         }
-      }
-    });
+      });
+      resultText = response.text || "";
+    } catch (primaryErr: any) {
+      console.warn("Primary model gemini-3.5-flash translation failed or busy. Attempting fallback to gemini-flash-latest...", primaryErr.message || primaryErr);
+      const fallbackResponse = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: `Translate and refine this expression from the source language "${sourceLanguage}": "${text}"`,
+        config: {
+          systemInstruction,
+          temperature: 0.25,
+          maxOutputTokens: 180,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              original: { type: Type.STRING },
+              translatedSimple: { type: Type.STRING },
+              translatedSmart: { type: Type.STRING },
+              pronunciationTip: { type: Type.STRING }
+            },
+            required: ["original", "translatedSimple", "translatedSmart", "pronunciationTip"]
+          }
+        }
+      });
+      resultText = fallbackResponse.text || "";
+    }
 
-    const resultText = response.text;
     if (!resultText) {
       throw new Error("No output from translate engine.");
     }
@@ -543,6 +613,9 @@ app.post("/api/tts", async (req, res) => {
         contents: [{ parts: [{ text: cleanedText }] }],
         config: {
           responseModalities: [Modality.AUDIO],
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.LOW
+          },
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName },
@@ -568,6 +641,9 @@ app.post("/api/tts", async (req, res) => {
           contents: [{ parts: [{ text: cleanedText }] }],
           config: {
             responseModalities: [Modality.AUDIO],
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.LOW
+            },
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: { voiceName: "Puck" },
@@ -593,6 +669,9 @@ app.post("/api/tts", async (req, res) => {
             contents: cleanedText,
             config: {
               responseModalities: [Modality.AUDIO],
+              thinkingConfig: {
+                thinkingLevel: ThinkingLevel.LOW
+              },
               speechConfig: {
                 voiceConfig: {
                   prebuiltVoiceConfig: { voiceName: "Kore" },
