@@ -50,6 +50,138 @@ import { Topic, Message, TranslationResult } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 
+// Safe fallback image component to prevent broken Unsplash images from showing as broken resource icons
+function SafeImage({ 
+  src, 
+  alt, 
+  className, 
+  fallbackText,
+  gradientFrom, 
+  gradientTo,
+  ...props 
+}: React.ImgHTMLAttributes<HTMLImageElement> & { 
+  fallbackText?: string;
+  gradientFrom?: string;
+  gradientTo?: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  // Reset error state when the src changes (critical for component reuse/recycling)
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
+  const getPlaceholderConfig = (text: string) => {
+    const norm = (text || "").toLowerCase();
+    
+    if (norm.includes("interview") || norm.includes("job") || norm.includes("tough") || norm.includes("college") || norm.includes("professor") || norm.includes("admission") || norm.includes("professional")) {
+      return {
+        gradient: "from-blue-600 to-indigo-700",
+        emoji: "💼",
+        sub: "INTERVIEW PRO"
+      };
+    }
+    if (norm.includes("workspace") || norm.includes("work") || norm.includes("co-worker") || norm.includes("meeting") || norm.includes("office") || norm.includes("team") || norm.includes("feedback") || norm.includes("business") || norm.includes("corporate")) {
+      return {
+        gradient: "from-indigo-600 to-violet-800",
+        emoji: "👥",
+        sub: "WORKPLACE"
+      };
+    }
+    if (norm.includes("introduce") || norm.includes("self") || norm.includes("routine") || norm.includes("education") || norm.includes("routine") || norm.includes("academic") || norm.includes("learn") || norm.includes("stud")) {
+      return {
+        gradient: "from-emerald-500 to-teal-600",
+        emoji: "🎓",
+        sub: "ABOUT YOURSELF"
+      };
+    }
+    if (norm.includes("friend") || norm.includes("routine") || norm.includes("casual") || norm.includes("routine") || norm.includes("speak") || norm.includes("vocabulary") || norm.includes("pronun")) {
+      return {
+        gradient: "from-emerald-500 to-teal-600",
+        emoji: "✨",
+        sub: "FLUENCY"
+      };
+    }
+    if (norm.includes("dinner") || norm.includes("family") || norm.includes("weekend") || norm.includes("airport") || norm.includes("attendant") || norm.includes("city") || norm.includes("hotel") || norm.includes("doctor") || norm.includes("shopping") || norm.includes("phone")) {
+      return {
+        gradient: "from-rose-500 to-orange-500",
+        emoji: "🏡",
+        sub: "DAILY LIFE"
+      };
+    }
+    if (norm.includes("bank") || norm.includes("hdfc") || norm.includes("finan") || norm.includes("money")) {
+      return {
+        gradient: "from-sky-500 to-indigo-600",
+        emoji: "🏦",
+        sub: "BANKING"
+      };
+    }
+    if (norm.includes("goat") || norm.includes("sheep") || norm.includes("bakrid") || norm.includes("fest")) {
+      return {
+        gradient: "from-amber-500 to-amber-600",
+        emoji: "🐐",
+        sub: "FESTIVAL"
+      };
+    }
+    if (norm.includes("byju") || norm.includes("brand") || norm.includes("tech") || norm.includes("educat")) {
+      return {
+        gradient: "from-purple-500 to-red-600",
+        emoji: "📱",
+        sub: "EDTECH"
+      };
+    }
+    if (norm.includes("nestle") || norm.includes("happi") || norm.includes("well") || norm.includes("employee")) {
+      return {
+        gradient: "from-emerald-400 to-cyan-500",
+        emoji: "🍫",
+        sub: "CORPORATE"
+      };
+    }
+    
+    // Default general fallback
+    return {
+      gradient: "from-indigo-500 to-purple-600",
+      emoji: "🎙️",
+      sub: "COACH VANI"
+    };
+  };
+
+  const config = getPlaceholderConfig(fallbackText || alt || "");
+  const appliedGradient = (gradientFrom && gradientTo) ? `from-${gradientFrom} to-${gradientTo}` : config.gradient;
+
+  if (hasError || !src) {
+    return (
+      <div className={`relative flex flex-col items-center justify-center bg-gradient-to-br ${appliedGradient} text-white select-none overflow-hidden ${className || ""}`}>
+        {/* Decorative concentric glowing rings or abstract grids */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.15),transparent_60%)] pointer-events-none" />
+        <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/5 border border-white/10 pointer-events-none" />
+        <div className="absolute -left-6 -top-6 w-20 h-20 rounded-full bg-white/5 border border-white/10 pointer-events-none" />
+        
+        {/* Centered themed layout */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center p-2">
+          <span className="text-2xl filter drop-shadow-sm mb-1 transform hover:scale-110 transition duration-300">{config.emoji}</span>
+          <span className="text-[7.5px] text-white/90 font-black uppercase tracking-widest leading-none bg-black/10 px-1.5 py-0.5 rounded-full border border-white/10">{config.sub}</span>
+          <span className="text-[9.5px] font-extrabold text-white mt-1 px-2 line-clamp-1 truncate max-w-full leading-tight">{fallbackText || alt || "Practice"}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      referrerPolicy="no-referrer"
+      onError={() => {
+        console.warn("Image load failed, showing beautiful placeholder:", alt);
+        setHasError(true);
+      }}
+      {...props}
+    />
+  );
+}
+
 // --- Ambient Music Synthesizer Class (Web Audio API) ---
 class AmbientMusicManager {
   private ctx: AudioContext | null = null;
@@ -215,6 +347,7 @@ export default function App() {
 
   // Access gate functions
   function canAccess(topicIndex: number) {
+    if (topicIndex === 0) return true; // Only "Introduce Yourself" (id 1, topicIndex 0) is open permanently free, no ₹7 trial payment prompted.
     if (userPlan === "premium" || userPlan === "pro") return true;
     if (userPlan === "monthly") return topicIndex < 28;
     if (userPlan === "trial" && !trialExpired)
@@ -481,6 +614,7 @@ export default function App() {
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [quickStudyActive, setQuickStudyActive] = useState<boolean>(false);
   
   // Chatting with VANI State
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -848,7 +982,7 @@ export default function App() {
     }
   };
 
-  const openConversationTopic = (topic: Topic) => {
+  const openConversationTopic = (topic: Topic, isQuickStudyMode = false) => {
     // If the topic is a premium or subscription-gated block, prompt upgrade
     if (topic.id > 0 && !canAccess(topic.id - 1)) {
       let suggestPrice = 99;
@@ -882,10 +1016,25 @@ export default function App() {
     }
     
     setSelectedTopic(topic);
+    setQuickStudyActive(isQuickStudyMode);
+
+    let initialMessage = `Namaste! I'm VANI, your English coach. Today we are exploring "${topic.title}" together. Don't worry about making mistakes! How do you feel about this topic? Tell me in a sentence.`;
+    
+    if (isQuickStudyMode) {
+      const quickStudyGreetings: Record<number, string> = {
+        1: "⚡ QUICK STUDY DRILL ⚡\n\nNamaste! Welcome to your rapid-fire practice for 'Introduce Yourself'. Let's perfect your elevator pitch. In one brief sentence, what is your current profession or field of study?",
+        10: "⚡ QUICK STUDY DRILL ⚡\n\nNamaste! Welcome to your Job Interview focus session. Let's do a quick behavioural challenge. Why should a major educational or corporate brand hire you? Give a 2-sentence response!",
+        19: "⚡ QUICK STUDY DRILL ⚡\n\nNamaste! Let's brush up your office coffee-break chat skills. A coworker asks: 'Any fun weekend plans, or just catching up on sleep?' How would you reply naturally in English?",
+        31: "⚡ QUICK STUDY DRILL ⚡\n\nNamaste! You are meeting your tutor to get feedback on a recent test. You want to politely ask: 'Are there any extra practice resources I can work on?' How would you phrase this in your own words?"
+      };
+      
+      initialMessage = quickStudyGreetings[topic.id] || `⚡ QUICK STUDY DRILL ⚡\n\nNamaste! Ready for an express learning sprint on "${topic.title}"? Let's kick-start your confidence with a rapid-fire question. Tell me, what is the most important vocabulary word you associate with this scenario?`;
+    }
+
     setChatMessages([
       {
         role: "assistant",
-        content: `Namaste! I'm VANI, your English coach. Today we are exploring "${topic.title}" together. Don't worry about making mistakes! How do you feel about this topic? Tell me in a sentence.`
+        content: initialMessage
       }
     ]);
     setScreen("chat");
@@ -2789,9 +2938,10 @@ export default function App() {
                       className="bg-white rounded-3xl overflow-hidden border border-stone-150 shadow-xxs cursor-pointer hover:shadow-sm hover:border-stone-250 transition duration-300 flex flex-col group text-left"
                     >
                       <div className="h-28 relative overflow-hidden select-none bg-stone-100">
-                        <img 
+                        <SafeImage 
                           src={scen.img} 
                           alt={scen.title} 
+                          fallbackText={scen.title}
                           className="w-full h-full object-cover group-hover:scale-102 transition duration-300" 
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent pointer-events-none" />
@@ -2804,9 +2954,23 @@ export default function App() {
                           <h4 className="text-[12px] font-black text-stone-900 tracking-tight leading-snug group-hover:text-rose-500 transition line-clamp-1">{scen.title}</h4>
                           <p className="text-[9px] text-stone-500 font-bold leading-relaxed line-clamp-2">{scen.desc}</p>
                         </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-stone-100 pt-1.5 mt-auto">
-                          <span className="text-[8px] uppercase tracking-wider font-extrabold text-stone-400">{scen.theme}</span>
-                          <span className="text-[10px] text-rose-500 font-black group-hover:translate-x-0.5 transition shrink-0">Speak →</span>
+                        <div className="flex flex-col gap-2 pt-1 border-t border-stone-100 pt-1.5 mt-auto">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-stone-400">{scen.theme}</span>
+                            <span className="text-[10px] text-rose-500 font-black group-hover:translate-x-0.5 transition shrink-0">Speak →</span>
+                          </div>
+                          <button
+                            id={`btn-quick-study-${scen.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (scen.item) {
+                                openConversationTopic(scen.item, true);
+                              }
+                            }}
+                            className="w-full py-1.5 bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white hover:text-white text-[8px] font-extrabold uppercase tracking-wide rounded-xl transition flex items-center justify-center gap-1 shadow-3xs hover:scale-101 active:scale-99"
+                          >
+                            <span>⚡ Quick Study</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -2844,7 +3008,7 @@ export default function App() {
                         ? "ring-2 ring-rose-500 scale-102 border-rose-500 bg-rose-50/50" 
                         : "border-stone-250 ring-2 ring-stone-100 group-hover:ring-rose-200"
                     }`}>
-                      <img src={theme.img} alt={theme.name} className="w-full h-full object-cover" />
+                      <SafeImage src={theme.img} alt={theme.name} fallbackText={theme.name} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-indigo-950/15 group-hover:bg-transparent transition" />
                     </div>
                     <span className="text-[10px] font-black text-stone-700 mt-2 leading-tight tracking-tight max-w-[76px] truncate">{theme.name}</span>
@@ -2909,7 +3073,7 @@ export default function App() {
                             : "border-stone-150 hover:border-rose-300 hover:shadow-xxs cursor-pointer active:scale-99"
                         }`}
                       >
-                        <img src={t.img} alt={t.title} className="w-10 h-10 rounded-lg object-cover shrink-0 select-none bg-stone-100" />
+                        <SafeImage src={t.img} alt={t.title} fallbackText={t.title} className="w-10 h-10 rounded-lg object-cover shrink-0 select-none bg-stone-100" />
                         
                         <div className="flex-1 text-left min-w-0">
                           <span className="text-[7.5px] font-black text-stone-450 tracking-wider uppercase">
@@ -2959,13 +3123,13 @@ export default function App() {
               {/* Stacked visually engaging cards */}
               <div className="relative w-16 h-12 shrink-0 select-none">
                 <div className="absolute top-0 right-0 w-11 h-11 bg-white p-0.5 rounded-lg shadow-md border border-stone-150 rotate-12 transform">
-                  <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=80&q=60" className="w-full h-full object-cover rounded-md" />
+                  <SafeImage src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=80&q=60" alt="Finance" fallbackText="HDFC" className="w-full h-full object-cover rounded-md" />
                 </div>
                 <div className="absolute top-1 right-2 w-11 h-11 bg-white p-0.5 rounded-lg shadow-md border border-stone-150 -rotate-12 transform">
-                  <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=80&q=60" className="w-full h-full object-cover rounded-md" />
+                  <SafeImage src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=80&q=60" alt="Workplace" fallbackText="Nestle" className="w-full h-full object-cover rounded-md" />
                 </div>
                 <div className="absolute top-2 right-4 w-11 h-11 bg-white p-0.5 rounded-lg shadow-lg border border-stone-150 rotate-3 transform">
-                  <img src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=80&q=60" className="w-full h-full object-cover rounded-md" />
+                  <SafeImage src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=80&q=60" alt="Local" fallbackText="Farmer" className="w-full h-full object-cover rounded-md" />
                 </div>
               </div>
             </div>
@@ -3057,7 +3221,7 @@ export default function App() {
                       className="w-48 bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-xxs shrink-0 cursor-pointer hover:shadow-md transition duration-200 active:scale-98 text-left"
                     >
                       <div className="h-28 overflow-hidden select-none bg-stone-150">
-                        <img src={rec.img} alt={rec.title} className="w-full h-full object-cover" />
+                        <SafeImage src={rec.img} alt={rec.title} fallbackText={rec.title} className="w-full h-full object-cover" />
                       </div>
                       <div className="p-3 bg-white">
                         <h5 className="font-extrabold text-stone-850 text-xs leading-snug tracking-tight truncate">{rec.title}</h5>
@@ -3090,7 +3254,7 @@ export default function App() {
                       <div className={`w-14 h-14 rounded-full border border-stone-250 overflow-hidden shadow-xxs flex items-center justify-center transition ${
                         isSelect ? "ring-2 ring-emerald-500 scale-102" : "ring-2 ring-stone-100"
                       }`}>
-                        <img src={th.img} alt={th.name} className="w-full h-full object-cover" />
+                        <SafeImage src={th.img} alt={th.name} fallbackText={th.name} className="w-full h-full object-cover" />
                       </div>
                       <span className="text-[10.5px] font-black text-stone-800 tracking-tight mt-2 block truncate w-full">{th.name}</span>
                       <span className="text-[8.5px] text-stone-500 font-bold block mt-0.5">{count} Topics</span>
@@ -3122,7 +3286,7 @@ export default function App() {
                             : "border-stone-150 shadow-xxs hover:border-emerald-300 hover:shadow-xs cursor-pointer active:scale-99"
                         }`}
                       >
-                        <img src={t.img} alt={t.title} className="w-14 h-14 rounded-xl object-cover shrink-0 select-none bg-stone-100" />
+                        <SafeImage src={t.img} alt={t.title} fallbackText={t.title} className="w-14 h-14 rounded-xl object-cover shrink-0 select-none bg-stone-100" />
                         
                         <div className="flex-1 text-left min-w-0">
                           <span className="text-[9px] font-black text-stone-400 tracking-wider uppercase">
@@ -3590,7 +3754,14 @@ export default function App() {
 
               <div className="flex-1 text-left min-w-0">
                 <h3 className="text-sm font-extrabold text-stone-800 leading-none">Coach VANI</h3>
-                <p className="text-emerald-600 text-[10px] font-bold mt-1 uppercase tracking-wider">● Online Tutor</p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">● Online Tutor</span>
+                  {quickStudyActive && (
+                    <span className="px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-[7px] uppercase rounded tracking-wider shadow-3xs animate-pulse">
+                      ⚡ Quick Study Mode
+                    </span>
+                  )}
+                </div>
               </div>
 
               {selectedTopic && (

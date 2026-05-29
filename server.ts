@@ -348,6 +348,8 @@ You MUST respond in JSON format conforming to the following structure:
       contents: parsedContents,
       config: {
         systemInstruction,
+        temperature: 0.25,
+        maxOutputTokens: 200,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -431,6 +433,8 @@ Return a JSON payload with the following structure:
       contents: `Translate and refine this expression from the source language "${sourceLanguage}": "${text}"`,
       config: {
         systemInstruction,
+        temperature: 0.25,
+        maxOutputTokens: 180,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

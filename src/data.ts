@@ -6,8 +6,8 @@ export const TOPICS: Topic[] = [
   { id: 2, title: "Describe Your Education", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=500&q=75", locked: false, done: false },
   { id: 3, title: "Talk About Experience", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&q=75", locked: false, done: false },
   { id: 4, title: "Daily Routine", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=500&q=75", locked: false, done: false },
-  { id: 5, title: "AI Friend Conversation", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=500&q=75", locked: false, done: false },
-  { id: 6, title: "Casual Daily Conversation", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=500&q=75", locked: false, done: false },
+  { id: 5, title: "AI Friend Conversation", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=500&q=75", locked: false, done: false },
+  { id: 6, title: "Casual Daily Conversation", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1543807535-eceef0bc6599?w=500&q=75", locked: false, done: false },
   { id: 7, title: "Confidence Building Exercises", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&q=75", locked: false, done: false },
   { id: 8, title: "Vocabulary Practice", cat: "Vocabulary", theme: "About Yourself", img: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=500&q=75", locked: false, done: false },
   { id: 9, title: "Pronunciation Practice", cat: "Speaking", theme: "About Yourself", img: "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=500&q=75", locked: false, done: false },
@@ -21,16 +21,16 @@ export const TOPICS: Topic[] = [
 
   // Theme: Work Place (8)
   { id: 15, title: "Chat with Co-workers", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=500&q=75", locked: false, done: false },
-  { id: 16, title: "Talk in Team Meetings", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=500&q=75", locked: false, done: false },
+  { id: 16, title: "Talk in Team Meetings", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1542744173-05336fcc7ad4?w=500&q=75", locked: false, done: false },
   { id: 17, title: "Approve a Request", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&q=75", locked: false, done: false },
   { id: 18, title: "Give Feedback to Team", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1531535934027-687f1434643a?w=500&q=75", locked: false, done: false },
   { id: 19, title: "Office Conversation", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&q=75", locked: false, done: false },
   { id: 20, title: "Business Meeting", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1542744094-3a31f103e35f?w=500&q=75", locked: false, done: false },
-  { id: 21, title: "Customer Support Conversation", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&q=75", locked: false, done: false },
+  { id: 21, title: "Customer Support Conversation", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1549923746-c502d488b3ea?w=500&q=75", locked: false, done: false },
   { id: 22, title: "Debate Practice", cat: "Speaking", theme: "Work Place", img: "https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?w=500&q=75", locked: true, done: false },
 
   // Theme: Daily Life (19)
-  { id: 23, title: "Make New Friends", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=500&q=75", locked: false, done: false },
+  { id: 23, title: "Make New Friends", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=500&q=75", locked: false, done: false },
   { id: 24, title: "Plan a Family Dinner", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1547573854-74d2a71d0826?w=500&q=75", locked: false, done: false },
   { id: 25, title: "Make Weekend Plans", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=500&q=75", locked: false, done: false },
   { id: 26, title: "Console a Friend", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=500&q=75", locked: false, done: false },
@@ -40,7 +40,7 @@ export const TOPICS: Topic[] = [
   { id: 30, title: "Hotel Check-in", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=75", locked: false, done: false },
   { id: 31, title: "Meet Child’s Teacher", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=500&q=75", locked: false, done: false },
   { id: 32, title: "Discuss Exam Results", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&q=75", locked: false, done: false },
-  { id: 33, title: "Restaurant Conversation", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&q=75", locked: false, done: true },
+  { id: 33, title: "Restaurant Conversation", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&q=75", locked: false, done: true },
   { id: 34, title: "Shopping Conversation", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=75", locked: false, done: false },
   { id: 35, title: "Travel Discussion", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1506012787146-f92b2d7d6d96?w=500&q=75", locked: false, done: false },
   { id: 36, title: "Phone Conversation", cat: "Speaking", theme: "Daily Life", img: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=500&q=75", locked: false, done: false },
@@ -52,10 +52,10 @@ export const TOPICS: Topic[] = [
 ];
 
 export const THEMES: Theme[] = [
-  { name: "About Yourself", count: 9, img: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200&q=75&fit=crop&crop=faces" },
-  { name: "Interview Pro",  count: 5,  img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&q=75&fit=crop&crop=faces" },
-  { name: "Work Place",     count: 8,  img: "https://images.unsplash.com/photo-1542744094-3a31f103e35f?w=200&q=75&fit=crop&crop=faces" },
-  { name: "Daily Life",     count: 19, img: "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=200&q=75&fit=crop&crop=faces" },
+  { name: "About Yourself", count: 9, img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=75&fit=crop&crop=faces" },
+  { name: "Interview Pro",  count: 5,  img: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=200&q=75&fit=crop&crop=faces" },
+  { name: "Work Place",     count: 8,  img: "https://images.unsplash.com/photo-14973662216548-37526070297c?w=200&q=75&fit=crop&crop=faces" },
+  { name: "Daily Life",     count: 19, img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=200&q=75&fit=crop&crop=faces" },
 ];
 
 export const NEWS: NewsItem[] = [
