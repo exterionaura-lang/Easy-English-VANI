@@ -317,25 +317,34 @@ app.post("/api/chat", async (req, res) => {
     // Format the last few messages for context
     const recentMessages = messages.slice(-8);
 
-    const systemInstruction = `You are Coach VANI, a warm, polite, and highly encouraging Indian English tutor who helps beginner/intermediate learners (often native Hindi or Bengali speakers) practice English.
+    const systemInstruction = `You are VANI — Voice Assisted Native Intelligence.
+You are a warm, encouraging English Speaking Coach for Indian learners. Their native languages may be Bengali, Hindi, Telugu, Tamil, Marathi, Odia, Punjabi, Gujarati, Kannada, or other Indian languages.
 Current situational topic: "${topicTitle || "General Conversation"}".
 Target User Level: "${userLevel}".
 
-Rules for your role:
-1. Speak in clean, direct, friendly, and easy-to-understand English.
-2. Keep your conversational response to 2 or 3 short sentences.
-3. Warmly end with a question or prompt that encourages the user to reply and keep speaking.
-4. You must separately evaluate the user's latest message to provide a beneficial learning tip:
-   - "grammarCorrection": If the user made a grammar, tense, or spelling mistake, kindly mention the correction in a gentle, non-judgmental way (e.g. "Instead of 'I has went', try saying 'I went' or 'I have gone'"). If there's no error, leave it empty or write "Excellent spelling and grammar!".
-   - "vocabularyBoost": Suggest 1-2 practical words, idiomatic expressions, or natural phrasings the user could use to sound more confident and advanced (e.g., "Boost: Try using 'exquisite' or 'looking forward to'").
-   - "bilingualTip": If they mixed in Hindi or Bengali words (e.g. "yaar", "achha", "bhai", "shob"), write a warm translation equivalent of what they said.
+TRANSLATION RULE — ABSOLUTE:
+You translate only FROM Indian languages INTO English. You never translate from English into any Indian language. If a user asks for reverse translation, respond warmly with reply:
+"I only help you say things in English! Let me show you how to say that in English."
+
+WHEN USER WRITES IN THEIR NATIVE LANGUAGE:
+The app has already shown them the English translation below their message. Your job now is only to coach them to say it themselves.
+Do NOT repeat the translation in your reply. Simply acknowledge their thought warmly, pick one key phrase from their meaning, and ask them to say it back in English.
+
+COACHING RULES:
+Keep responses to 2 to 3 short sentences only.
+Be warm, patient, and encouraging always.
+Correct grammar mistakes gently in one sentence.
+Always end with a simple follow-up question.
+Use simple everyday vocabulary only.
+All your responses are in English only.
+Plain text only. No markdown. No asterisks. No bullet symbols. No special characters.
 
 You MUST respond in JSON format conforming to the following structure:
 {
-  "reply": "Your friendly, short conversational response to the user",
+  "reply": "Friendly, short conversational coach reply to the user (2-3 sentences, plain text, no markdown).",
   "grammarCorrection": "A gentle correction or positive comment if no errors were made",
   "vocabularyBoost": "One friendly tip on how to say it even better or a new vocabulary word",
-  "bilingualTip": "Friendly explanation of any Hindi/Bengali word used, or empty string"
+  "bilingualTip": "Friendly explanation of any Hindi/Bengali/other regional expression used, or empty string"
 }`;
 
     const parsedContents = recentMessages.map(m => ({
@@ -353,9 +362,6 @@ You MUST respond in JSON format conforming to the following structure:
           temperature: 0.25,
           maxOutputTokens: 200,
           responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW
-          },
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -446,6 +452,90 @@ You MUST respond in JSON format conforming to the following structure:
   }
 });
 
+// App-wide silent translation endpoint (Regional Indian to English)
+app.post("/api/quick-translate", async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      console.log("[QUICK-TRANSLATE] Empty messages array received");
+      return res.json({ content: [] });
+    }
+
+    const userText = (messages[0].content || "").trim();
+    if (!userText) {
+      console.log("[QUICK-TRANSLATE] Empty user text input");
+      return res.json({ content: [] });
+    }
+
+    console.log("[QUICK-TRANSLATE] Received text from client:", userText);
+
+    const systemInstruction = `You are a silent language detection and universal translation engine.
+OUTPUT RULES — STRICT:
+- If the user input is already written in standard, clean conversational English (ignoring trivial casing or typos), return EXACTLY "".
+- Analyze the user text written in any non-English language, regional Indian language (Hindi, Bengali, Telugu, Tamil, Marathi, Odia, Punjabi, Gujarati, Kannada, etc.), Romanised text (such as Hinglish, Benglish, Tanglish, etc.), or hybrid slang.
+- Output the English translation ONLY.
+- No explanation.
+- No original text repeated.
+- No quotation marks around it.
+- No labels or prefixes.
+- Just the plain English sentence.
+- One sentence or a few words maximum.
+- Sound natural, like a real person speaking conversational English.`;
+
+    let translation = "";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Translate to English or detect if already English: "${userText}"`,
+        config: {
+          systemInstruction,
+          temperature: 0.1,
+          maxOutputTokens: 180,
+          responseMimeType: "text/plain"
+        }
+      });
+      translation = (response.text || "").trim();
+    } catch (err: any) {
+      console.warn("Gemini quick-translate failed, trying fallback to gemini-flash-latest:", err.message);
+      const fallbackResponse = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: `Translate to English or detect if already English: "${userText}"`,
+        config: {
+          systemInstruction,
+          temperature: 0.1,
+          maxOutputTokens: 180,
+          responseMimeType: "text/plain"
+        }
+      });
+      translation = (fallbackResponse.text || "").trim();
+    }
+
+    console.log("[QUICK-TRANSLATE] Raw Gemini output:", translation);
+
+    // Cleanup quote wraps if the model added them
+    translation = translation.replace(/^["'“”‘‛‟]|["'“”’‛‟]$/g, "").trim();
+
+    const normUser = userText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}="‘'“”`~\-_()?]/g, "").replace(/\s+/g, " ").trim();
+    const normTrans = translation.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}="‘'“”`~\-_()?]/g, "").replace(/\s+/g, " ").trim();
+
+    if (!translation || normUser === normTrans || translation.toLowerCase() === "empty" || translation === '""' || translation.toLowerCase().includes("already in english") || translation.toLowerCase().includes("already english")) {
+      console.log("[QUICK-TRANSLATE] Decided Input is already English or empty. Returning no translation.");
+      return res.json({ content: [] });
+    }
+
+    console.log("[QUICK-TRANSLATE] Translating successfully. Returning output:", translation);
+
+    return res.json({
+      content: [
+        { text: translation }
+      ]
+    });
+  } catch (error: any) {
+    console.error("Error in quick-translate endpoint:", error);
+    return res.json({ content: [] });
+  }
+});
+
 // 2. Bilingual Translator tool (e.g. "Translate Hindi/Bengali/other regional thoughts to perfect English")
 app.post("/api/translate", async (req, res) => {
   try {
@@ -479,9 +569,6 @@ Return a JSON payload with the following structure:
           temperature: 0.25,
           maxOutputTokens: 180,
           responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW
-          },
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -613,9 +700,6 @@ app.post("/api/tts", async (req, res) => {
         contents: [{ parts: [{ text: cleanedText }] }],
         config: {
           responseModalities: [Modality.AUDIO],
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW
-          },
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName },
@@ -641,9 +725,6 @@ app.post("/api/tts", async (req, res) => {
           contents: [{ parts: [{ text: cleanedText }] }],
           config: {
             responseModalities: [Modality.AUDIO],
-            thinkingConfig: {
-              thinkingLevel: ThinkingLevel.LOW
-            },
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: { voiceName: "Puck" },
@@ -669,9 +750,6 @@ app.post("/api/tts", async (req, res) => {
             contents: cleanedText,
             config: {
               responseModalities: [Modality.AUDIO],
-              thinkingConfig: {
-                thinkingLevel: ThinkingLevel.LOW
-              },
               speechConfig: {
                 voiceConfig: {
                   prebuiltVoiceConfig: { voiceName: "Kore" },

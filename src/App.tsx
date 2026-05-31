@@ -182,6 +182,137 @@ function SafeImage({
   );
 }
 
+// --- VANI Translation block component ---
+interface TranslationBlockProps {
+  text: string | null;
+  loading?: boolean;
+}
+
+function TranslationBlock({ text, loading }: TranslationBlockProps) {
+  const [copied, setCopied] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  const handleCopy = () => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleListen = () => {
+    if (!text) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-IN";
+    u.rate = 0.85;
+    u.onend = () => setSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    setSpeaking(true);
+  };
+
+  const baseClassName = "self-end max-w-[82%] bg-[#F3E8FF] border-l-4 border-[#8B2FC9] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl p-4.5 mt-2 mb-3 shadow-xs text-left";
+
+  // LOADING STATE — shimmer skeleton
+  if (loading) {
+    return (
+      <div className={baseClassName}>
+        <style>{`
+          @keyframes shimmerAnimation {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.85; }
+            100% { opacity: 0.4; }
+          }
+        `}</style>
+        <div className="text-[10px] md:text-[11px] font-extrabold tracking-wider text-[#8B2FC9] uppercase mb-2">
+          🔤 IN ENGLISH
+        </div>
+        <div 
+          className="h-3.5 bg-[#8B2FC9]/15 rounded-lg w-[70%]"
+          style={{ animation: "shimmerAnimation 1.2s ease infinite" }}
+        />
+        <div 
+          className="h-3.5 bg-[#8B2FC9]/10 rounded-lg w-[45%] mt-1.5"
+          style={{ animation: "shimmerAnimation 1.2s ease infinite" }}
+        />
+      </div>
+    );
+  }
+
+  // LOADED STATE — full beautiful card
+  return (
+    <div 
+      className={baseClassName}
+      style={{
+        animation: "fadeSlideUp 0.35s ease forwards"
+      }}
+    >
+      <style>{`
+        @keyframes fadeSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      <div className="text-[10px] md:text-[11px] font-extrabold tracking-wider text-[#8B2FC9] uppercase mb-1.5">
+        🔤 IN ENGLISH
+      </div>
+
+      <div className="h-[1px] bg-[#8B2FC9]/15 mb-2.5" />
+
+      <div className="text-[18px] md:text-[20px] font-bold text-[#1A1A1A] leading-relaxed mb-3">
+        {text}
+      </div>
+
+      <div className="flex gap-2">
+        <button 
+          onClick={handleCopy} 
+          style={{
+            background: copied ? "rgba(76,175,80,0.15)" : "#EEEEEE",
+            border: "none",
+            borderRadius: "14px",
+            padding: "5px 12px",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: copied ? "#4CAF50" : "#333",
+            cursor: "pointer",
+            transition: "all 0.2s"
+          }}
+        >
+          {copied ? "✓ Copied!" : "📋 Copy"}
+        </button>
+
+        <button
+          onClick={handleListen}
+          style={{
+            background: speaking ? "rgba(139,47,201,0.25)" : "rgba(139,47,201,0.12)",
+            border: "none",
+            borderRadius: "14px",
+            padding: "5px 12px",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "#8B2FC9",
+            cursor: "pointer",
+            transition: "all 0.2s"
+          }}
+        >
+          {speaking ? "⏹ Stop" : "🔊 Listen"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- Ambient Music Synthesizer Class (Web Audio API) ---
 class AmbientMusicManager {
   private ctx: AudioContext | null = null;
@@ -316,7 +447,7 @@ const getLangSpeechCode = (langCode: string): string => {
 export default function App() {
   // Screens: "onboarding", "home", "topics", "translate", "call", "chat"
   const [screen, setScreen] = useState<string>(() => {
-    const plan = localStorage.getItem("vani_user_plan") || "none";
+    const plan = localStorage.getItem("userPlan") || localStorage.getItem("vani_user_plan") || "none";
     const completedOnboarding = localStorage.getItem("vani_onboarding_completed") === "true";
     return (plan !== "none" || completedOnboarding) ? "home" : "onboarding";
   });
@@ -330,39 +461,53 @@ export default function App() {
   
   // Subscription tier root state variables
   const [userPlan, setUserPlan] = useState<string>(() => {
-    return localStorage.getItem("vani_user_plan") || "none";
+    return localStorage.getItem("userPlan") || localStorage.getItem("vani_user_plan") || "none";
   });
   const [trialDaysLeft, setTrialDaysLeft] = useState<number>(() => {
-    const saved = localStorage.getItem("vani_trial_days_left");
+    const saved = localStorage.getItem("vani_trial_days_left") || localStorage.getItem("trialDaysLeft");
     return saved ? parseInt(saved, 10) : 7;
   });
   const [trialStartDate, setTrialStartDate] = useState<number | null>(() => {
-    const saved = localStorage.getItem("vani_trial_start_date");
+    const saved = localStorage.getItem("vani_trial_start_date") || localStorage.getItem("trialStartDate");
     return saved ? parseInt(saved, 10) : null;
   });
   const [trialExpired, setTrialExpired] = useState<boolean>(() => {
-    return localStorage.getItem("vani_trial_expired") === "true";
+    return localStorage.getItem("vani_trial_expired") === "true" || localStorage.getItem("trialExpired") === "true";
   });
   const [sessionMsgCount, setSessionMsgCount] = useState<number>(0);
 
+  // Subscription Gate System states
+  const [gateMode, setGateMode] = useState<"splash" | "onboarding" | "trial_expired" | "plan_expired" | "none">("splash");
+  const [onboardingPage, setOnboardingPage] = useState<number>(1);
+  const [selectedPlanDetails, setSelectedPlanDetails] = useState<{ key: string; price: string; name: string } | null>(null);
+  const [showPayModal, setShowPayModal] = useState<boolean>(false);
+  const [payProcessing, setPayProcessing] = useState<boolean>(false);
+  const [showPaySuccess, setShowPaySuccess] = useState<boolean>(false);
+  const [trialSessionsCount, setTrialSessionsCount] = useState<number>(() => {
+    const saved = localStorage.getItem("trialSessionsCount");
+    return saved ? parseInt(saved, 10) : 4;
+  });
+  const [showTerms, setShowTerms] = useState<boolean>(false);
+  const [showPrivacy, setShowPrivacy] = useState<boolean>(false);
+  const [showAccessibility, setShowAccessibility] = useState<boolean>(false);
+
   // Access gate functions
   function canAccess(topicIndex: number) {
-    if (topicIndex === 0) return true; // Only "Introduce Yourself" (id 1, topicIndex 0) is open permanently free, no ₹7 trial payment prompted.
-    if (userPlan === "premium" || userPlan === "pro") return true;
-    if (userPlan === "monthly") return topicIndex < 28;
-    if (userPlan === "trial" && !trialExpired)
-      return topicIndex < 1; // Only "Introduce Yourself" (id 1, topicIndex 0) is open
+    if (userPlan === "premium" || userPlan === "promaster" || userPlan === "pro" || userPlan === "monthly") return true;
+    if (userPlan === "trial" && !trialExpired) return topicIndex === 0;
     return false;
   }
 
   function canUseVoiceStation() {
     return userPlan === "monthly" ||
            userPlan === "premium" ||
+           userPlan === "promaster" ||
            userPlan === "pro";
   }
 
   function canSendMessage() {
     if (userPlan === "premium" ||
+        userPlan === "promaster" ||
         userPlan === "monthly" ||
         userPlan === "pro") return true;
     if (userPlan === "trial" && !trialExpired)
@@ -370,11 +515,75 @@ export default function App() {
     return false;
   }
 
+  // Auto launch flow hook
+  useEffect(() => {
+    // Increment session count on launch if in trial mode
+    if (localStorage.getItem("userPlan") === "trial") {
+      const currentSessions = parseInt(localStorage.getItem("trialSessionsCount") || "4", 10);
+      localStorage.setItem("trialSessionsCount", String(currentSessions + 1));
+      setTrialSessionsCount(currentSessions + 1);
+    }
+
+    const timer = setTimeout(() => {
+      const plan = localStorage.getItem("userPlan") || localStorage.getItem("vani_user_plan") || "none";
+      const startDate = localStorage.getItem("trialStartDate") || localStorage.getItem("vani_trial_start_date");
+      const expiry = localStorage.getItem("planExpiry") || localStorage.getItem("vani_plan_expiry");
+
+      if (!plan || plan === "none") {
+        setGateMode("none");
+        return;
+      }
+
+      if (plan === "trial") {
+        if (!startDate) {
+          setGateMode("none");
+          return;
+        }
+        const ms = Date.now() - parseInt(startDate, 10);
+        const days = ms / (1000 * 60 * 60 * 24);
+
+        if (days >= 7) {
+          localStorage.setItem("trialExpired", "true");
+          localStorage.setItem("vani_trial_expired", "true");
+          setTrialExpired(true);
+          setGateMode("trial_expired");
+        } else {
+          const daysLeft = Math.ceil(7 - days);
+          setUserPlan("trial");
+          setTrialDaysLeft(daysLeft);
+          setTrialExpired(false);
+          setGateMode("none");
+        }
+        return;
+      }
+
+      if (plan === "monthly" || plan === "premium" || plan === "promaster" || plan === "pro") {
+        if (!expiry) {
+          setGateMode("none");
+          return;
+        }
+        const now = Date.now();
+        if (now > parseInt(expiry, 10)) {
+          setGateMode("plan_expired");
+        } else {
+          setUserPlan(plan);
+          setGateMode("none");
+        }
+        return;
+      }
+
+      setGateMode("none");
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Auto synchronizations for persistent local storage & backward compatibility
   useEffect(() => {
+    localStorage.setItem("userPlan", userPlan);
     localStorage.setItem("vani_user_plan", userPlan);
-    setIsPremium(userPlan === "premium" || userPlan === "pro");
-    setActivePlan(userPlan === "pro" ? "pro" : userPlan === "premium" ? "premium" : userPlan === "monthly" ? "basic" : "none" as any);
+    setIsPremium(userPlan === "premium" || userPlan === "pro" || userPlan === "promaster");
+    setActivePlan(userPlan === "promaster" ? "pro" : userPlan === "pro" ? "pro" : userPlan === "premium" ? "premium" : userPlan === "monthly" ? "basic" : "none" as any);
   }, [userPlan]);
 
   useEffect(() => {
@@ -421,6 +630,76 @@ export default function App() {
   const [xp, setXp] = useState<number>(420);
   const [dailyGoalMins, setDailyGoalMins] = useState<number>(15);
   const [dailyGoalDone, setDailyGoalDone] = useState<number>(4);
+
+  const [activeToast, setActiveToast] = useState<{ message: string; subMessage?: string; type: 'success' | 'info' | 'streak' } | null>(null);
+
+  const showToast = (message: string, subMessage?: string, type: 'success' | 'info' | 'streak' = 'info') => {
+    setActiveToast({ message, subMessage, type });
+  };
+
+  useEffect(() => {
+    if (activeToast) {
+      const timer = setTimeout(() => {
+        setActiveToast(null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeToast]);
+
+  const celebrateStreak = (customType?: 'side-cannons' | 'burst') => {
+    if (customType === 'side-cannons') {
+      try {
+        const end = Date.now() + 1200;
+        const colors = ['#f43f5e', '#10b981', '#fbbf24', '#3b82f6', '#ec4899'];
+        const frame = () => {
+          confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0, y: 0.8 },
+            colors: colors
+          });
+          confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1, y: 0.8 },
+            colors: colors
+          });
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        };
+        frame();
+      } catch (e) {}
+    } else {
+      try {
+        confetti({
+          particleCount: 65,
+          spread: 70,
+          origin: { y: 0.75 }
+        });
+      } catch (e) {}
+    }
+  };
+
+  const handleProgressStreak = () => {
+    const isAlreadyReached = dailyGoalDone >= dailyGoalMins;
+    const newMins = Math.min(dailyGoalMins, dailyGoalDone + 1);
+    setDailyGoalDone(newMins);
+    setStreak(prev => prev + 1);
+    setXp(prev => prev + 20);
+
+    if (newMins >= dailyGoalMins && !isAlreadyReached) {
+      celebrateStreak('side-cannons');
+      showToast("🏆 Daily Practice Goal Reached!", "You completed 15 mins! Special +100 XP unlocked!", "success");
+      setXp(prev => prev + 100);
+      playTTS("Amazing work! You've successfully hit your daily learning goal. Keep up this magnificent streak!", 4099);
+    } else {
+      celebrateStreak('burst');
+      showToast("🔥 Daily Streak Advanced!", `Active streak: ${streak + 1} Days • ${newMins}/${dailyGoalMins} mins done! (+20 XP)`, "streak");
+    }
+  };
   const [musicSelected, setMusicSelected] = useState<'lofi' | 'bengali' | 'celestial' | 'off'>('off');
   const [emotionalTone, setEmotionalTone] = useState<'warm' | 'energetic' | 'calm_bengali' | 'stern'>('warm');
   const [continuousListening, setContinuousListening] = useState<boolean>(false);
@@ -455,6 +734,7 @@ export default function App() {
   const [paymentSuccessTriggered, setPaymentSuccessTriggered] = useState<boolean>(false);
   const [reportOverlayOpen, setReportOverlayOpen] = useState<boolean>(false);
   const [reportTab, setReportTab] = useState<'performance' | 'account'>('performance');
+  const [voiceToastMessage, setVoiceToastMessage] = useState<string>("");
   
   // Custom switch for lightning-fast voice chat response (0ms delay local synthesis vs cloud AI model)
   const [useInstantTurboVoice, setUseInstantTurboVoice] = useState<boolean>(() => {
@@ -874,6 +1154,21 @@ export default function App() {
     }, 1000);
   };
 
+  function needsTranslation(text: string): boolean {
+    // Non-Latin Unicode (Bengali, Hindi, Telugu, Tamil etc.)
+    if (/[\u0080-\uFFFF]/.test(text))
+      return true;
+
+    // Romanised Hinglish / Benglish patterns
+    const patterns = [
+      /\b(ami|amar|tumi|tomake|kemon|achho|ache|bhalo|bhalobashi|kothay|esho|hobe|bolchi|dekho|jao)\b/i,
+      /\b(mujhe|tumhe|kya|kyun|kaise|nahi|haan|theek|achha|bahut|bolna|karna|jana|aana|suno)\b/i,
+      /\b(naku|meeku|emi|ela|enduku|cheppandi|avunu|kaadu)\b/i,
+      /\b(naan|nee|enna|epdi|sollu|theriyum|theriyaadu|paaru)\b/i,
+    ];
+    return patterns.some(p => p.test(text));
+  }
+
   // Send situational message to Coach VANI via backend
   const handleChatSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -900,15 +1195,73 @@ export default function App() {
     const userText = chatInput.trim();
     setChatInput("");
     setSessionMsgCount(prev => prev + 1);
-
-    // Add user message to log
-    const updatedMessages: Message[] = [
-      ...chatMessages,
-      { role: "user", content: userText }
-    ];
-    setChatMessages(updatedMessages);
     setLoadingReply(true);
 
+    const isNative = needsTranslation(userText);
+
+    const newUserMsg: Message = { 
+      role: "user", 
+      content: userText, 
+      translationText: null,
+      translationLoading: isNative 
+    };
+    const updatedMessages = [...chatMessages, newUserMsg];
+
+    // INSTANTLY display user's typed chat bubble on the screen for zero-latency feel
+    setChatMessages(updatedMessages);
+
+    // 1. Asynchronously fetch the regional translation in the background if native language detected
+    if (isNative) {
+      fetch("/api/quick-translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: userText }]
+        })
+      })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error("Translation status not ok");
+        })
+        .then(transData => {
+          const translationText = transData?.content?.[0]?.text?.trim() || null;
+          
+          // Update the last user message with translationText - style triggers immediate change
+          setChatMessages(prev => {
+            const updated = [...prev];
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].role === "user" && updated[i].translationLoading) {
+                updated[i] = {
+                  ...updated[i],
+                  translationText: translationText,
+                  translationLoading: false
+                };
+                break;
+              }
+            }
+            return updated;
+          });
+        })
+        .catch(transErr => {
+          console.warn("Translation request error:", transErr);
+          // Reset loading status in case of error
+          setChatMessages(prev => {
+            const updated = [...prev];
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].role === "user" && updated[i].translationLoading) {
+                updated[i] = {
+                  ...updated[i],
+                  translationLoading: false
+                };
+                break;
+              }
+            }
+            return updated;
+          });
+        });
+    }
+
+    // 2. Fetch the virtual coach reply from the server in parallel
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -923,16 +1276,18 @@ export default function App() {
       if (!response.ok) throw new Error("Bilingual coach route error");
       const data = await response.json();
 
-      setChatMessages((prev) => [
-        ...prev,
-        {
+      setChatMessages(prev => {
+        // Ensure we preserve any async translation updates on the user's message!
+        const withResponse = [...prev];
+        withResponse.push({
           role: "assistant",
           content: data.reply,
           grammarFeedback: data.grammarCorrection,
           vocabBoost: data.vocabularyBoost,
           bilingualTip: data.bilingualTip
-        }
-      ]);
+        });
+        return withResponse;
+      });
 
       // Automatically speak VANI's conversational response
       if (data.reply) {
@@ -943,7 +1298,7 @@ export default function App() {
 
     } catch (err: any) {
       console.error(err);
-      setChatMessages((prev) => [
+      setChatMessages(prev => [
         ...prev,
         {
           role: "assistant",
@@ -1257,6 +1612,1119 @@ export default function App() {
     return matchesTheme && matchesSearch;
   });
 
+  // Subscription Action Handlers
+  const handleStartTrial = () => {
+    setSelectedPlanDetails({
+      key: "trial",
+      price: "₹7.00 for 7 days",
+      name: "7-Day Trial"
+    });
+    setShowPayModal(true);
+  };
+
+  const handleSubscribePlan = (plan: string) => {
+    const details: Record<string, { price: string; name: string }> = {
+      monthly  : { 
+        price: "₹99.00 / month", 
+        name : "Easy English — Basic Monthly" 
+      },
+      premium  : { 
+        price: "₹249.00 / month", 
+        name : "Easy English — Premium" 
+      },
+      promaster: { 
+        price: "₹449.00 / month", 
+        name : "Easy English — Pro Master" 
+      }
+    };
+    
+    setSelectedPlanDetails({
+      key: plan,
+      price: details[plan].price,
+      name: details[plan].name
+    });
+    setShowPayModal(true);
+  };
+
+  const confirmPaymentSimulation = () => {
+    if (!selectedPlanDetails) return;
+    setPayProcessing(true);
+    setTimeout(() => {
+      const plan = selectedPlanDetails.key;
+      
+      localStorage.setItem("userPlan", plan);
+      localStorage.setItem("vani_user_plan", plan);
+      setUserPlan(plan);
+      
+      if (plan === "trial") {
+        const now = Date.now();
+        localStorage.setItem("trialStartDate", String(now));
+        localStorage.setItem("vani_trial_start_date", String(now));
+        localStorage.setItem("trialExpired", "false");
+        localStorage.setItem("vani_trial_expired", "false");
+        setTrialStartDate(now);
+        setTrialDaysLeft(7);
+        setTrialExpired(false);
+      } else {
+        const expiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
+        localStorage.setItem("planExpiry", String(expiry));
+        localStorage.setItem("vani_plan_expiry", String(expiry));
+      }
+      
+      setPayProcessing(false);
+      setShowPayModal(false);
+      setShowPaySuccess(true);
+      
+      // Auto success callback bursts canvas confetti
+      try {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {
+        console.warn("Confetti call bypassed:", e);
+      }
+      
+    }, 1800);
+  };
+
+  const enterAppAfterPayment = () => {
+    setShowPaySuccess(false);
+    setGateMode("none");
+    setBillingOverlayOpen(false);
+  };
+
+  // Rendering methods for Subscription Gating Screens
+  const renderSplashScreen = () => {
+    return (
+      <div id="splash-screen" style={{
+        position        : "absolute",
+        top             : 0, left: 0,
+        width           : "100%", height: "100%",
+        background      : "#0D0D0D",
+        display         : "flex",
+        flexDirection   : "column",
+        alignItems     : "center",
+        justifyContent : "center",
+        zIndex         : 9999,
+      }}>
+        {/* Animated logo */}
+        <div id="splash-logo" style={{
+          width           : "96px",
+          height          : "96px",
+          borderRadius   : "50%",
+          background      : "linear-gradient(135deg, #FF6B2B, #FF8C55)",
+          display         : "flex",
+          alignItems     : "center",
+          justifyContent : "center",
+          fontSize       : "44px",
+          marginBottom   : "24px",
+          animation       : "splashPulse 1s ease-in-out infinite alternate",
+          boxShadow      : "0 0 40px rgba(255,107,43,0.5)",
+        }}>🎙️</div>
+
+        {/* App name */}
+        <h1 style={{
+          fontFamily   : "'Cormorant Garamond', serif",
+          fontSize     : "36px",
+          color         : "#FF8C4A",
+          margin        : "0 0 8px 0",
+          letterSpacing: "2px",
+        }}>Easy English</h1>
+
+        {/* Tagline */}
+        <p style={{
+          fontFamily   : "Poppins, sans-serif",
+          fontSize     : "13px",
+          color         : "#767676",
+          margin        : "0 0 40px 0",
+        }}>Powered by VANI AI</p>
+
+        {/* Loading bar */}
+        <div style={{
+          width           : "160px",
+          height          : "3px",
+          background      : "#1A1A1A",
+          borderRadius   : "4px",
+          overflow        : "hidden",
+        }}>
+          <div id="splash-bar" style={{
+            height          : "3px",
+            background      : "#FF6B2B",
+            width           : "0%",
+            borderRadius   : "4px",
+            animation       : "loadBar 1.4s ease forwards",
+          }}></div>
+        </div>
+
+        <style>{`
+          @keyframes splashPulse {
+            from { transform: scale(1); }
+            to   { transform: scale(1.08); }
+          }
+          @keyframes loadBar {
+            from { width: 0%; }
+            to   { width: 100%; }
+          }
+        `}</style>
+      </div>
+    );
+  };
+
+  const renderOnboardingScreen = () => {
+    return (
+      <div className="absolute inset-0 bg-[#0D0D0D] z-[9990] flex flex-col justify-between p-6 overflow-y-auto text-white select-none" style={{ fontFamily: "Poppins, sans-serif" }}>
+        
+        {onboardingPage === 1 && (
+          <div className="flex-1 flex flex-col justify-center items-center text-center py-8">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#FF6B2B] to-[#FF8C55] rounded-full flex items-center justify-center text-4xl mb-6 shadow-[0_0_40px_rgba(255,107,43,0.4)]">
+              🎙️
+            </div>
+            
+            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "32px", color: "#FF8C4A" }} className="font-bold tracking-wide">
+              Meet VANI
+            </h2>
+            
+            <p className="text-[15px] font-medium text-white mt-1">
+              Your Personal AI Spoken English Coach
+            </p>
+            
+            <p className="text-[13px] text-[#767676] max-w-xs mt-3 leading-relaxed">
+              Speak better English in just 15 minutes a day — guaranteed.
+            </p>
+            
+            <div className="w-full max-w-xs mt-8 space-y-4 text-left">
+              <div className="feature-row">
+                <span>✅</span> <span>Voice-first learning — just speak</span>
+              </div>
+              <div className="feature-row">
+                <span>✅</span> <span>Real-time corrections by VANI</span>
+              </div>
+              <div className="feature-row">
+                <span>✅</span> <span>50 topics from basics to professional</span>
+              </div>
+            </div>
+            
+            <div className="flex justify-center gap-2 mt-10">
+              <span className="text-[#FF6B2B] text-lg leading-none">●</span>
+              <span className="text-stone-605 text-stone-600 text-lg leading-none">○</span>
+              <span className="text-stone-605 text-stone-600 text-lg leading-none">○</span>
+            </div>
+            
+            <button 
+              onClick={() => setOnboardingPage(2)}
+              className="w-full mt-8 py-4 bg-gradient-to-r from-[#FF6B2B] to-[#FF8C55] rounded-xl text-white font-bold text-center transition hover:opacity-90 active:scale-98 shadow-[0_4px_20px_rgba(255,107,43,0.3)]"
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
+        {onboardingPage === 2 && (
+          <div className="flex-1 flex flex-col justify-center py-6">
+            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "32px", color: "#FF8C4A" }} className="font-bold text-center mb-6">
+              How VANI Works
+            </h2>
+            
+            <div className="space-y-4 max-w-md w-full mx-auto">
+              <div className="bg-[#1A1A1A] border border-stone-800 rounded-2xl p-5 flex items-start gap-4">
+                <span className="text-3xl">🎙️</span>
+                <div>
+                  <h4 className="font-bold text-white text-base">Speak</h4>
+                  <p className="text-xs text-stone-400 mt-1">Tap the mic and talk in English</p>
+                </div>
+              </div>
+              
+              <div className="bg-[#1A1A1A] border border-stone-800 rounded-2xl p-5 flex items-start gap-4">
+                <span className="text-3xl">👂</span>
+                <div>
+                  <h4 className="font-bold text-white text-base">VANI Listens</h4>
+                  <p className="text-xs text-stone-400 mt-1">VANI hears your voice and understands</p>
+                </div>
+              </div>
+              
+              <div className="bg-[#1A1A1A] border border-stone-800 rounded-2xl p-5 flex items-start gap-4">
+                <span className="text-3xl">✅</span>
+                <div>
+                  <h4 className="font-bold text-white text-base">VANI Corrects</h4>
+                  <p className="text-xs text-stone-400 mt-1">Get instant feedback and improve fast</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-center gap-2 mt-8">
+              <span className="text-stone-605 text-stone-600 text-lg leading-none">○</span>
+              <span className="text-[#FF6B2B] text-lg leading-none">●</span>
+              <span className="text-stone-605 text-stone-600 text-lg leading-none">○</span>
+            </div>
+            
+            <div className="flex gap-4 w-full mt-8">
+              <button 
+                onClick={() => setOnboardingPage(1)}
+                className="flex-1 py-4 bg-[#1A1A1A] border border-stone-800 hover:bg-[#252525] rounded-xl text-stone-300 font-bold text-center transition active:scale-98"
+              >
+                ← Back
+              </button>
+              <button 
+                onClick={() => setOnboardingPage(3)}
+                className="flex-1 py-4 bg-gradient-to-r from-[#FF6B2B] to-[#FF8C55] rounded-xl text-white font-bold text-center transition hover:opacity-90 active:scale-98 shadow-[0_4px_20px_rgba(255,107,43,0.3)]"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {onboardingPage === 3 && (
+          <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar py-2">
+            {renderPlanSelectionMarkup({ hideTrialCard: false, onBack: () => setOnboardingPage(2) })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPlanSelectionMarkup = ({ hideTrialCard = false, onBack = null }: { hideTrialCard?: boolean; onBack?: (() => void) | null }) => {
+    return (
+      <div id="plan-selection-screen" className="flex-1 flex flex-col bg-[#0D0D0D] text-white">
+        {/* HEADER */}
+        <div style={{ padding: "24px 20px 8px", textAlign: "center" }} className="relative">
+          {onBack && (
+            <button 
+              onClick={onBack}
+              className="absolute left-1 top-2 p-2 text-stone-400 hover:text-white transition"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          <div style={{
+            fontSize     : "11px",
+            letterSpacing: "3px",
+            color         : "#FF8C4A",
+            textTransform: "uppercase",
+            marginBottom : "8px",
+          }}>START YOUR JOURNEY</div>
+
+          <h1 style={{
+            fontFamily   : "'Cormorant Garamond', serif",
+            fontSize     : "30px",
+            color         : "#FFFFFF",
+            margin        : "0 0 8px 0",
+          }}>Choose Your Plan</h1>
+
+          <p style={{
+            fontSize     : "13px",
+            color         : "#767676",
+            margin        : "0 0 24px 0",
+          }}>Unlock VANI and start speaking better English today</p>
+        </div>
+
+        {/* PLAN LISTING */}
+        <div className="space-y-4 px-1 pb-10 overflow-y-auto no-scrollbar">
+          
+          {/* Card 1: 7-Day Trial */}
+          {!hideTrialCard && (
+            <div 
+              className="plan-card" 
+              id="card-trial"
+              onClick={() => handleStartTrial()}
+              style={{
+                margin          : "0 16px 16px",
+                background      : "#1A1A1A",
+                border          : "2px solid #FF6B2B",
+                borderRadius   : "20px",
+                padding         : "20px",
+                cursor          : "pointer",
+                position        : "relative"
+              }}
+            >
+              <div style={{
+                position        : "absolute",
+                top             : "-12px",
+                left            : "50%",
+                transform       : "translateX(-50%)",
+                background      : "#FF6B2B",
+                color           : "white",
+                fontSize       : "10px",
+                fontWeight     : "bold",
+                padding         : "4px 16px",
+                borderRadius   : "20px",
+                whiteSpace     : "nowrap",
+                letterSpacing  : "1px",
+              }}>START HERE — BEST FOR BEGINNERS</div>
+
+              <div style={{
+                display         : "flex",
+                justifyContent : "space-between",
+                alignItems     : "flex-start",
+                marginTop      : "8px",
+                marginBottom   : "16px",
+              }}>
+                <div>
+                  <div style={{
+                    fontSize     : "20px",
+                    fontWeight   : "bold",
+                    color         : "#FFFFFF",
+                  }}>7-Day Trial</div>
+                  <div style={{
+                    fontSize     : "12px",
+                    color         : "#767676",
+                    marginTop    : "2px",
+                  }}>Try before you commit</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{
+                    fontSize     : "36px",
+                    fontWeight   : "bold",
+                    color         : "#FF8C4A",
+                    lineHeight   : "1",
+                  }}>₹7</div>
+                  <div style={{
+                    fontSize     : "11px",
+                    color         : "#767676",
+                  }}>for 7 days</div>
+                </div>
+              </div>
+
+              <div style={{
+                display         : "flex",
+                flexDirection  : "column",
+                gap             : "8px",
+                marginBottom   : "16px",
+              }}>
+                <div className="feature-row">✅ 'Introduce Yourself' practice session unlocked</div>
+                <div className="feature-row">✅ VANI interactive chat (5 messages/session)</div>
+                <div className="feature-row">✅ Pronunciation and regional accent checks</div>
+                <div className="feature-row">🔒 Other 40+ dynamic scenarios — locked</div>
+                <div className="feature-row locked text-[#555555]">🔒 VANI Voice Dialing station — locked</div>
+                <div className="feature-row locked text-[#555555]">🔒 Comprehensive STAR Interview — locked</div>
+              </div>
+
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleStartTrial(); }}
+                style={{
+                  width           : "100%",
+                  height          : "52px",
+                  background      : "linear-gradient(135deg,#FF6B2B,#FF8C55)",
+                  border          : "none",
+                  borderRadius   : "14px",
+                  color           : "white",
+                  fontSize       : "16px",
+                  fontWeight     : "bold",
+                  cursor          : "pointer",
+                  fontFamily     : "Poppins, sans-serif",
+                  boxShadow      : "0 4px 20px rgba(255,107,43,0.4)",
+                }}
+              >
+                Start 7-Day Trial — ₹7 Only
+              </button>
+
+              <div style={{
+                textAlign    : "center",
+                fontSize     : "11px",
+                color         : "#555",
+                marginTop    : "8px",
+              }}>No auto-renewal · One-time payment</div>
+            </div>
+          )}
+
+          {/* Card 2: Basic Monthly */}
+          <div 
+            className="plan-card" 
+            id="card-monthly"
+            onClick={() => handleSubscribePlan("monthly")}
+            style={{
+              margin          : "0 16px 16px",
+              background      : "#1A1A1A",
+              border          : "2px solid #374151",
+              borderRadius   : "20px",
+              padding         : "20px",
+              cursor          : "pointer",
+              position        : "relative"
+            }}
+          >
+            <div style={{
+              display         : "flex",
+              justifyContent : "space-between",
+              alignItems     : "flex-start",
+              marginBottom   : "16px",
+            }}>
+              <div>
+                <div style={{
+                  fontSize     : "20px",
+                  fontWeight   : "bold",
+                  color         : "#FFFFFF",
+                }}>Basic Monthly</div>
+                <div style={{
+                  fontSize     : "12px",
+                  color         : "#767676",
+                  marginTop    : "2px",
+                }}>Most popular starter plan</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{
+                  fontSize     : "36px",
+                  fontWeight   : "bold",
+                  color         : "#FF8C4A",
+                  lineHeight   : "1",
+                }}>₹99</div>
+                <div style={{
+                  fontSize     : "11px",
+                  color         : "#767676",
+                }}>per month</div>
+              </div>
+            </div>
+
+            <div style={{
+              display         : "flex",
+              flexDirection  : "column",
+              gap             : "8px",
+              marginBottom   : "16px",
+            }}>
+              <div className="feature-row">✅ All 40+ Topics unlocked (Unlimited lessons)</div>
+              <div className="feature-row">✅ VANI text chat — unlimited</div>
+              <div className="feature-row">✅ Interview modules unlocked</div>
+              <div className="feature-row">✅ All Latest and Trending content</div>
+              <div className="feature-row locked text-[#555555]">🔒 VANI Voice coaching — locked</div>
+              <div className="feature-row locked text-[#555555]">🔒 IELTS tools — locked</div>
+            </div>
+
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleSubscribePlan("monthly"); }}
+              style={{
+                width           : "100%",
+                height          : "52px",
+                background      : "#1A1A1A",
+                border          : "2px solid #FF6B2B",
+                borderRadius   : "14px",
+                color           : "#FF8C4A",
+                fontSize       : "16px",
+                fontWeight     : "bold",
+                cursor          : "pointer",
+                fontFamily     : "Poppins, sans-serif",
+              }}
+            >
+              Subscribe — ₹99/month
+            </button>
+
+            <div style={{
+              textAlign    : "center",
+              fontSize     : "11px",
+              color         : "#555",
+              marginTop    : "8px",
+            }}>Cancel anytime · Auto-renews monthly</div>
+          </div>
+
+          {/* Card 3: Premium */}
+          <div 
+            className="plan-card" 
+            id="card-premium"
+            onClick={() => handleSubscribePlan("premium")}
+            style={{
+              margin          : "0 16px 16px",
+              background      : "linear-gradient(180deg,#1E1208,#1A1A1A)",
+              border          : "2px solid #FF8C4A",
+              borderRadius   : "20px",
+              padding         : "20px",
+              cursor          : "pointer",
+              position        : "relative",
+              boxShadow      : "0 8px 32px rgba(255,140,74,0.2)",
+            }}
+          >
+            <div style={{
+              position        : "absolute",
+              top             : "-12px",
+              left            : "50%",
+              transform       : "translateX(-50%)",
+              background      : "linear-gradient(90deg,#FF6B2B,#FF8C55)",
+              color           : "white",
+              fontSize       : "10px",
+              fontWeight     : "bold",
+              padding         : "4px 20px",
+              borderRadius   : "20px",
+              whiteSpace     : "nowrap",
+              letterSpacing  : "1px",
+            }}>⭐ MOST POPULAR — BEST VALUE</div>
+
+            <div style={{
+              display         : "flex",
+              justifyContent : "space-between",
+              alignItems     : "flex-start",
+              marginTop      : "8px",
+              marginBottom   : "16px",
+            }}>
+              <div>
+                <div style={{
+                  fontSize     : "20px",
+                  fontWeight   : "bold",
+                  color         : "#FFFFFF",
+                }}>Premium</div>
+                <div style={{
+                  fontSize     : "12px",
+                  color         : "#FF8C4A",
+                  marginTop    : "2px",
+                }}>Full VANI experience</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{
+                  fontSize     : "36px",
+                  fontWeight   : "bold",
+                  color         : "#FF8C4A",
+                  lineHeight   : "1",
+                }}>₹249</div>
+                <div style={{
+                  fontSize     : "11px",
+                  color         : "#767676",
+                }}>per month</div>
+              </div>
+            </div>
+
+            <div style={{
+              display         : "flex",
+              flexDirection  : "column",
+              gap             : "8px",
+              marginBottom   : "16px",
+            }}>
+              <div className="feature-row gold text-[#E8C97A]">✅ All 40 topics fully unlocked</div>
+              <div className="feature-row gold text-[#E8C97A]">✅ VANI Voice coaching — FULLY UNLOCKED</div>
+              <div className="feature-row gold text-[#E8C97A]">✅ VANI text chat — unlimited + priority</div>
+              <div className="feature-row gold text-[#E8C97A]">✅ IELTS preparation tools</div>
+              <div className="feature-row gold text-[#E8C97A]">✅ VIP coaching sessions</div>
+              <div className="feature-row gold text-[#E8C97A]">✅ Corporate roleplay scenarios</div>
+              <div className="feature-row gold text-[#E8C97A]">✅ Bengali phonetics unlocked</div>
+            </div>
+
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleSubscribePlan("premium"); }}
+              style={{
+                width           : "100%",
+                height          : "52px",
+                background      : "linear-gradient(135deg,#FF6B2B,#FF8C55)",
+                border          : "none",
+                borderRadius   : "14px",
+                color           : "white",
+                fontSize       : "16px",
+                fontWeight     : "bold",
+                cursor          : "pointer",
+                fontFamily     : "Poppins, sans-serif",
+                boxShadow      : "0 4px 24px rgba(255,107,43,0.5)",
+              }}
+            >
+              Go Premium — ₹249/month
+            </button>
+
+            <div style={{
+              textAlign    : "center",
+              fontSize     : "11px",
+              color         : "#555",
+              marginTop    : "8px",
+            }}>Cancel anytime · Auto-renews monthly</div>
+          </div>
+
+          {/* Card 4: Pro Master */}
+          <div 
+            className="plan-card" 
+            id="card-promaster"
+            onClick={() => handleSubscribePlan("promaster")}
+            style={{
+              margin          : "0 16px 16px",
+              background      : "linear-gradient(180deg,#0D0820,#1A1A1A)",
+              border          : "2px solid #7C3AED",
+              borderRadius   : "20px",
+              padding         : "20px",
+              cursor          : "pointer",
+              position        : "relative"
+            }}
+          >
+            <div style={{
+              position        : "absolute",
+              top             : "-12px",
+              left            : "50%",
+              transform       : "translateX(-50%)",
+              background      : "linear-gradient(90deg,#7C3AED,#FF6B2B)",
+              color           : "white",
+              fontSize       : "10px",
+              fontWeight     : "bold",
+              padding         : "4px 20px",
+              borderRadius   : "20px",
+              whiteSpace     : "nowrap",
+              letterSpacing  : "1px",
+            }}>👑 LIFETIME PRO MASTER</div>
+
+            <div style={{
+              display         : "flex",
+              justifyContent : "space-between",
+              alignItems     : "flex-start",
+              marginTop      : "8px",
+              marginBottom   : "16px",
+            }}>
+              <div>
+                <div style={{
+                  fontSize     : "20px",
+                  fontWeight   : "bold",
+                  color         : "#FFFFFF",
+                }}>Pro Master</div>
+                <div style={{
+                  fontSize     : "12px",
+                  color         : "#A78BFA",
+                  marginTop    : "2px",
+                }}>For serious English learners</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{
+                  fontSize     : "36px",
+                  fontWeight   : "bold",
+                  color         : "#A78BFA",
+                  lineHeight   : "1",
+                }}>₹449</div>
+                <div style={{
+                  fontSize     : "11px",
+                  color         : "#767676",
+                }}>per month</div>
+              </div>
+            </div>
+
+            <div style={{
+              display         : "flex",
+              flexDirection  : "column",
+              gap             : "8px",
+              marginBottom   : "16px",
+            }}>
+              <div className="feature-row purple text-[#C4B5FD]">✅ Everything in Premium</div>
+              <div className="feature-row purple text-[#C4B5FD]">✅ VIP interview coaching queue</div>
+              <div className="feature-row purple text-[#C4B5FD]">✅ IELTS feedback tools — advanced</div>
+              <div className="feature-row purple text-[#C4B5FD]">✅ Priority VANI response routes</div>
+              <div className="feature-row purple text-[#C4B5FD]">✅ Dedicated progress coach</div>
+              <div className="feature-row purple text-[#C4B5FD]">✅ Early access to new features</div>
+            </div>
+
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleSubscribePlan("promaster"); }}
+              style={{
+                width           : "100%",
+                height          : "52px",
+                background      : "linear-gradient(135deg,#7C3AED,#FF6B2B)",
+                border          : "none",
+                borderRadius   : "14px",
+                color           : "white",
+                fontSize       : "16px",
+                fontWeight     : "bold",
+                cursor          : "pointer",
+                fontFamily     : "Poppins, sans-serif",
+                boxShadow      : "0 4px 24px rgba(124,58,237,0.4)",
+              }}
+            >
+              Go Pro Master — ₹449/month
+            </button>
+
+            <div style={{
+              textAlign    : "center",
+              fontSize     : "11px",
+              color         : "#555",
+              marginTop    : "8px",
+            }}>Cancel anytime · Auto-renews monthly</div>
+          </div>
+
+          {/* LEGAL FOOTER */}
+          <div style={{
+            padding       : "16px 20px 32px",
+            textAlign      : "center",
+            fontSize       : "11px",
+            color         : "#555",
+            lineHeight     : "1.6",
+            fontFamily     : "Poppins, sans-serif",
+          }}>
+            Payments processed via Google Play Billing. Subscriptions auto-renew unless cancelled 24 hours before renewal date. Managed through your Google Play account.
+            <br /><br />
+            <span style={{ color: "#FF8C4A", textDecoration: "underline", cursor: "pointer" }} onClick={() => setShowTerms(true)}>Terms of Service</span>
+            &nbsp;·&nbsp;
+            <span style={{ color: "#FF8C4A", textDecoration: "underline", cursor: "pointer" }} onClick={() => setShowPrivacy(true)}>Privacy Policy</span>
+            &nbsp;·&nbsp;
+            <span style={{ color: "#FF8C4A", textDecoration: "underline", cursor: "pointer" }} onClick={() => setShowAccessibility(true)}>Accessibility</span>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
+
+  const renderTrialExpiredScreen = () => {
+    return (
+      <div id="trial-expired-screen" className="absolute inset-0 bg-[#0D0D0D] z-[9990] flex flex-col p-4 overflow-y-auto text-white select-none" style={{ fontFamily: "Poppins, sans-serif" }}>
+        <div style={{ padding: "40px 20px 20px", textAlign: "center" }}>
+          
+          <div style={{ fontSize: "64px", marginBottom: "16px" }}>⏰</div>
+
+          <h1 style={{ fontSize: "26px", color: "#FF8C4A", margin: "0 0 8px 0" }} className="font-bold">
+            Your Trial Has Ended
+          </h1>
+
+          <p style={{ fontSize: "14px", color: "#767676", margin: "0 0 8px 0", lineHeight: "1.6" }}>
+            Your 7-day trial is complete.
+          </p>
+
+          <div style={{
+            background      : "#1A1A1A",
+            border          : "1px solid #2A2A2A",
+            borderRadius   : "16px",
+            padding         : "16px",
+            margin          : "20px 0",
+            textAlign      : "left"
+          }}>
+            <div style={{ fontSize: "13px", color: "#FF8C4A", fontWeight: "bold", marginBottom: "12px" }}>
+              📊 Your Progress So Far
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+              <span style={{ color: "#B0B0B0", fontSize: "13px" }}>Topics completed</span>
+              <span style={{ color: "#FF8C4A", fontWeight: "bold", fontSize: "13px" }}>
+                <span>{topics.filter(t => t.done).length}</span>/12
+              </span>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#B0B0B0", fontSize: "13px" }}>Sessions with VANI</span>
+              <span style={{ color: "#FF8C4A", fontWeight: "bold", fontSize: "13px" }}>
+                <span>{trialSessionsCount}</span>
+              </span>
+            </div>
+          </div>
+
+          <p style={{ fontSize: "14px", color: "#B0B0B0", marginBottom: "24px" }} className="leading-relaxed">
+            Continue your journey — upgrade to keep your progress and unlock everything.
+          </p>
+        </div>
+
+        {renderPlanSelectionMarkup({ hideTrialCard: true, onBack: null })}
+      </div>
+    );
+  };
+
+  const renderPlanExpiredScreen = () => {
+    return (
+      <div id="plan-expired-screen" className="absolute inset-0 bg-[#0D0D0D] z-[9990] flex flex-col p-4 overflow-y-auto text-white select-none" style={{ fontFamily: "Poppins, sans-serif" }}>
+        <div style={{ padding: "40px 20px 20px", textAlign: "center" }}>
+          
+          <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔒</div>
+
+          <h1 style={{ fontSize: "26px", color: "#FF8C4A", margin: "0 0 8px 0" }} className="font-bold">
+            Subscription Expired
+          </h1>
+
+          <p style={{ fontSize: "14px", color: "#767676", margin: "0 0 16px 0", lineHeight: "1.6" }}>
+            Your monthly access period has completed. Select a plan below to renew and continue chatting with VANI.
+          </p>
+        </div>
+
+        {renderPlanSelectionMarkup({ hideTrialCard: true, onBack: null })}
+      </div>
+    );
+  };
+
+  const renderPaymentModal = () => {
+    if (!selectedPlanDetails) return null;
+    return (
+      <div id="payment-modal" style={{
+        display         : "flex",
+        position        : "fixed",
+        top             : 0, left: 0,
+        width           : "100%", height: "100%",
+        background      : "rgba(0,0,0,0.7)",
+        zIndex         : 10000,
+        alignItems     : "flex-end",
+        justifyContent : "center",
+      }}>
+        <div id="payment-sheet" style={{
+          background      : "#1A1A1A",
+          borderRadius   : "24px 24px 0 0",
+          padding         : "24px 20px 40px",
+          width           : "100%",
+          maxWidth       : "420px",
+          fontFamily     : "Poppins, sans-serif",
+        }} className="transform translate-y-0 transition-transform duration-350 text-white">
+          
+          {/* Google Play header */}
+          <div style={{
+            display         : "flex",
+            alignItems     : "center",
+            gap             : "10px",
+            marginBottom   : "20px",
+            paddingBottom  : "16px",
+            borderBottom   : "1px solid #2A2A2A",
+          }}>
+            <div style={{
+              width           : "32px",
+              height          : "32px",
+              background      : "linear-gradient(135deg,#4285F4,#34A853,#FBBC05,#EA4335)",
+              borderRadius   : "8px",
+              display         : "flex",
+              alignItems     : "center",
+              justifyContent : "center",
+              fontSize       : "16px",
+            }}>▶</div>
+            <div style={{
+              fontSize       : "14px",
+              fontWeight     : "bold",
+              color           : "#FFFFFF",
+            }}>Google Play</div>
+          </div>
+
+          {/* Plan summary */}
+          <div style={{
+            background      : "#222222",
+            borderRadius   : "12px",
+            padding         : "16px",
+            marginBottom   : "20px",
+          }}>
+            <div id="modal-plan-name" style={{
+              fontSize       : "16px",
+              fontWeight     : "bold",
+              color           : "#FFFFFF",
+              marginBottom   : "4px",
+            }}>{selectedPlanDetails.name}</div>
+
+            <div id="modal-plan-price" style={{
+              fontSize       : "24px",
+              fontWeight     : "bold",
+              color           : "#FF8C4A",
+              marginBottom   : "4px",
+            }}>{selectedPlanDetails.price}</div>
+
+            <div style={{
+              fontSize       : "12px",
+              color         : "#767676",
+            }}>Auto-renews monthly. Cancel anytime.</div>
+          </div>
+
+          {/* Payment method */}
+          <div style={{
+            display         : "flex",
+            alignItems     : "center",
+            justifyContent : "space-between",
+            padding         : "14px 0",
+            borderBottom   : "1px solid #2A2A2A",
+            marginBottom   : "20px",
+          }}>
+            <div style={{
+              display         : "flex",
+              alignItems     : "center",
+              gap             : "10px",
+            }}>
+              <div style={{
+                width           : "36px",
+                height          : "24px",
+                background      : "#4285F4",
+                borderRadius   : "6px",
+                display         : "flex",
+                alignItems     : "center",
+                justifyContent : "center",
+                fontSize       : "12px",
+                color           : "white",
+                fontWeight     : "bold",
+              }}>G</div>
+              <span style={{
+                fontSize       : "13px",
+                color           : "#FFFFFF",
+              }}>Google Play (UPI)</span>
+            </div>
+            <span style={{ color: "#FF8C4A" }}>▼</span>
+          </div>
+
+          {/* Subscribe button */}
+          <button 
+            id="confirm-payment-btn"
+            onClick={confirmPaymentSimulation}
+            disabled={payProcessing}
+            style={{
+              width           : "100%",
+              height          : "56px",
+              background      : payProcessing ? "#555" : "#1A73E8",
+              border          : "none",
+              borderRadius   : "14px",
+              color           : "white",
+              fontSize       : "16px",
+              fontWeight     : "bold",
+              cursor          : payProcessing ? "not-allowed" : "pointer",
+              fontFamily     : "Poppins, sans-serif",
+              marginBottom   : "12px",
+            }}
+          >
+            {payProcessing ? "Processing..." : "Subscribe Now"}
+          </button>
+
+          {/* Cancel link */}
+          <div style={{ textAlignment: "center" }} className="text-center">
+            <span 
+              onClick={() => setShowPayModal(false)}
+              style={{
+                fontSize       : "13px",
+                color         : "#767676",
+                cursor          : "pointer",
+                textDecoration : "underline",
+              }}
+            >
+              Cancel
+            </span>
+          </div>
+
+          {/* Legal note */}
+          <div style={{
+            fontSize       : "10px",
+            color           : "#555",
+            textAlign      : "center",
+            marginTop      : "12px",
+            lineHeight     : "1.5",
+          }}>
+            By subscribing you agree to Google Play Terms. Subscription managed by Google Play. Cancel under Google Play → Subscriptions.
+          </div>
+
+        </div>
+      </div>
+    );
+  };
+
+  const renderPaymentSuccess = () => {
+    if (!selectedPlanDetails) return null;
+    const messages: Record<string, string> = {
+      trial    : "Your 7-day trial is active!\nVANI is waiting for you.",
+      monthly  : "Welcome to Basic Monthly!\n28 topics are now unlocked.",
+      premium  : "Welcome to Premium!\nAll 40 topics + Voice coaching unlocked!",
+      promaster: "Welcome to Pro Master!\nVIP access granted. VANI is yours."
+    };
+    return (
+      <div id="payment-success" style={{
+        position        : "fixed",
+        top             : 0, left: 0,
+        width           : "100%", height: "100%",
+        background      : "#0D0D0D",
+        zIndex         : 10001,
+        display         : "flex",
+        flexDirection  : "column",
+        alignItems     : "center",
+        justifyContent : "center",
+        fontFamily     : "Poppins, sans-serif",
+      }} className="text-white p-6">
+        
+        {/* Animated tick */}
+        <div id="success-tick" style={{
+          width           : "80px",
+          height          : "80px",
+          borderRadius   : "50%",
+          background      : "linear-gradient(135deg,#22C55E,#16A34A)",
+          display         : "flex",
+          alignItems     : "center",
+          justifyContent : "center",
+          fontSize       : "36px",
+          marginBottom   : "24px",
+          animation       : "tickBounce 0.6s ease-out forwards",
+        }}>✓</div>
+
+        <h2 style={{
+          color         : "#FFFFFF",
+          fontSize     : "24px",
+          margin        : "0 0 8px 0",
+          textAlign    : "center",
+        }} className="font-bold text-center">Payment Successful!</h2>
+
+        <p id="success-message" style={{
+          color         : "#B0B0B0",
+          fontSize     : "14px",
+          textAlign    : "center",
+          margin        : "0 20px 32px",
+          lineHeight   : "1.6",
+          whiteSpace   : "pre-line"
+        }}>{messages[selectedPlanDetails.key] || "Welcome to Easy English Premium!"}</p>
+
+        {/* CSS Confetti */}
+        <div id="confetti-container" className="absolute inset-0 pointer-events-none overflow-hidden">
+          {Array.from({ length: 40 }).map((_, i) => {
+            const colors = ["#FF6B2B","#FF8C4A","#22C55E","#3B82F6","#F59E0B","#EC4899"];
+            const color = colors[i % colors.length];
+            const top = Math.random() * 30;
+            const left = Math.random() * 100;
+            const duration = 1 + Math.random();
+            const delay = Math.random() * 0.5;
+            return (
+              <div 
+                key={i} 
+                className="absolute w-2 h-2 rounded-full overflow-hidden"
+                style={{
+                  background: color,
+                  top: `${top}%`,
+                  left: `${left}%`,
+                  animation: `fall ${duration}s ease-in forwards`,
+                  animationDelay: `${delay}s`,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        <button 
+          onClick={enterAppAfterPayment}
+          style={{
+            background    : "linear-gradient(135deg,#FF6B2B,#FF8C55)",
+            border        : "none",
+            borderRadius : "14px",
+            color         : "white",
+            fontSize       : "16px",
+            fontWeight     : "bold",
+            padding       : "16px 48px",
+            cursor        : "pointer",
+            fontFamily     : "Poppins, sans-serif",
+            boxShadow      : "0 4px 20px rgba(255,107,43,0.4)",
+          }}
+        >
+          Start Learning with VANI 🎙️
+        </button>
+
+        <style>{`
+          @keyframes tickBounce {
+            0%   { transform: scale(0); opacity: 0; }
+            60%  { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes fall {
+            to { 
+              transform  : translateY(100vh) rotate(360deg);
+              opacity    : 0;
+            }
+          }
+        `}</style>
+      </div>
+    );
+  };
+
+  const renderLegalModals = () => {
+    if (!showTerms && !showPrivacy && !showAccessibility) return null;
+    const title = showTerms ? "Terms of Service" : showPrivacy ? "Privacy Policy" : "Accessibility Guidelines";
+    const content = showTerms 
+      ? "Welcome to Easy English. By using our coaching platform powered by VANI AI, you agree to comply with our Terms of Service. Access to standard topics is subject to your selected plan limits. Subscription payments are processed securely, and no real-money transactions are processed in this simulator environment."
+      : showPrivacy
+      ? "Your privacy is important to us. VANI AI processes audio and conversational text to provide real-time grammatical corrections and vocabulary corrections. We do not store, sell, or analyze your voice recordings for any other purposes."
+      : "Easy English is committed to digital accessibility. We support screen readers, adjustable speech synthesizers, manual keyboard inputs, and sound reactive waveforms to make English learning fully inclusive.";
+
+    return (
+      <div className="fixed inset-0 bg-black/80 z-[10005] flex items-center justify-center p-5 font-poppins text-white select-none">
+        <div className="bg-[#1A1A1A] border border-stone-800 rounded-3xl p-6 w-full max-w-sm text-left relative shadow-2xl">
+          <h3 className="text-lg font-bold text-[#FF8C4A] mb-3">{title}</h3>
+          <p className="text-xs text-stone-300 leading-relaxed mb-6">{content}</p>
+          <button 
+            onClick={() => {
+              setShowTerms(false);
+              setShowPrivacy(false);
+              setShowAccessibility(false);
+            }}
+            className="w-full py-3 bg-[#FF6B2B] hover:bg-[#FF8C55] rounded-xl text-white font-bold text-center text-xs transition active:scale-95"
+          >
+            I Understand
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const MENU_ITEMS = [
     { icon: <Languages className="w-5 h-5 text-rose-500" />, label: "Express Translator", action: () => { setTranslatorOpen(true); setMenuOpen(false); } },
     { icon: <Compass className="w-5 h-5 text-emerald-500" />, label: "Discover All Topics", action: () => { setScreen("topics"); setMenuOpen(false); } },
@@ -1266,6 +2734,52 @@ export default function App() {
 
   return (
     <div className="relative max-w-md mx-auto min-h-screen flex flex-col bg-stone-50 overflow-hidden shadow-2xl border-x border-stone-200">
+      
+      {/* Global Celebrations and Milestone Toasts */}
+      <AnimatePresence>
+        {activeToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -45, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92, y: -25 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="absolute top-4 left-4 right-4 z-[9999] bg-slate-900 border border-slate-800 text-white p-3.5 rounded-2xl shadow-xl flex items-center gap-3"
+          >
+            <div className={`p-2 rounded-xl text-lg flex items-center justify-center shrink-0 ${
+              activeToast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 font-bold' :
+              activeToast.type === 'streak' ? 'bg-rose-500/20 text-rose-400 font-bold' :
+              'bg-blue-500/20 text-blue-400 font-bold'
+            }`}>
+              {activeToast.type === 'success' ? '🏆' : activeToast.type === 'streak' ? '🔥' : '✨'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11.5px] font-black tracking-wide leading-tight uppercase text-slate-100">{activeToast.message}</p>
+              {activeToast.subMessage && (
+                <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">{activeToast.subMessage}</p>
+              )}
+            </div>
+            <button 
+              onClick={() => setActiveToast(null)}
+              className="text-slate-500 hover:text-slate-300 text-xs p-1 font-black cursor-pointer active:scale-95 duration-100"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic start-up gating overlays */}
+      {gateMode === "splash" && renderSplashScreen()}
+      {gateMode === "onboarding" && renderOnboardingScreen()}
+      {gateMode === "trial_expired" && renderTrialExpiredScreen()}
+      {gateMode === "plan_expired" && renderPlanExpiredScreen()}
+
+      {/* Payment Sheet & Success Celebrations */}
+      {showPayModal && renderPaymentModal()}
+      {showPaySuccess && renderPaymentSuccess()}
+
+      {/* Legal Modals */}
+      {renderLegalModals()}
       
       {/* Dynamic Left Hamburger Drawer */}
       <AnimatePresence>
@@ -1304,13 +2818,21 @@ export default function App() {
                 ))}
               </div>
 
-              <div className="p-4 bg-lime-50 rounded-2xl border border-lime-100 mb-4">
-                <p className="text-xs text-lime-800 font-bold mb-1">🔥 Current Streak</p>
+              <button 
+                onClick={() => {
+                  handleProgressStreak();
+                }}
+                className="w-full text-left p-4 bg-lime-50 hover:bg-lime-100/60 rounded-2xl border border-lime-200 mb-4 cursor-pointer active:scale-95 transition-all duration-200"
+              >
+                <p className="text-xs text-lime-800 font-extrabold mb-1 flex items-center gap-1">
+                  <span>🔥 Current Streak</span>
+                  <span className="animate-pulse text-[10px] bg-lime-200 text-lime-800 px-1.5 py-0.2 rounded-full font-black">TAP +XP</span>
+                </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">⚡</span>
-                  <p className="text-sm font-bold text-stone-800">5 Days Active</p>
+                  <span className="text-2xl animate-bounce">⚡</span>
+                  <p className="text-sm font-black text-stone-800">{streak} Days Active</p>
                 </div>
-              </div>
+              </button>
 
               <div className="pt-4 border-t border-stone-100 text-center">
                 <p className="text-xxs text-stone-400 font-bold">VANI ENG TUTOR VERSION 2.1</p>
@@ -1343,7 +2865,7 @@ export default function App() {
               <div className="flex items-center justify-between pb-4 border-b border-stone-100">
                 <div className="flex items-center gap-2">
                   <Languages className="w-5 h-5 text-rose-500" />
-                  <h3 className="text-lg font-extrabold text-stone-800">Express Translator</h3>
+                  <h3 className="text-lg font-black text-rose-600 uppercase tracking-tight">English Translation Only</h3>
                 </div>
                 <button 
                   onClick={() => setTranslatorOpen(false)}
@@ -1354,11 +2876,32 @@ export default function App() {
               </div>
 
               <p className="text-xs text-stone-500 mt-2 leading-relaxed">
-                Stuck on how to say something in English? Select your native regional language, type your thought, and VANI will suggest simple and confident variations instantly!
+                Translate your native thoughts <strong className="text-rose-550 font-bold">strictly into fluent spoken English</strong>! VANI works exclusively to convert and elevate expressions into English only.
               </p>
 
+              {/* Translation flow diagram indicator */}
+              <div className="my-3 bg-rose-50/50 rounded-2xl p-3 border border-rose-100 flex items-center justify-between text-center select-none">
+                <div className="flex-1">
+                  <span className="block text-[10px] font-black text-rose-500 uppercase tracking-wider">Indian Source</span>
+                  <span className="block text-xs font-bold text-stone-700 mt-0.5">{selectedSourceLang}</span>
+                </div>
+                <div className="px-2 font-black text-rose-500 text-sm animate-pulse">➜</div>
+                <div className="flex-1">
+                  <span className="block text-[10px] font-black text-emerald-600 uppercase tracking-wider">English Output</span>
+                  <span className="block text-xs font-bold text-stone-850 mt-0.5">Fluent Conversational</span>
+                </div>
+              </div>
+
+              {/* Strict constraints notification */}
+              <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-200/60 flex gap-2 items-start text-left mb-2">
+                <span className="text-xs text-amber-600 mt-0.5 shrink-0">⚠️</span>
+                <p className="text-[9.5px] text-amber-900 font-extrabold leading-normal uppercase">
+                  Strictly Regional to English Conversational revisions only. Translation to other directions is deliberately unsupported.
+                </p>
+              </div>
+
               {/* Language Selector for Drawer */}
-              <div className="flex gap-2 items-center mt-3 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-2 text-xs text-stone-700">
+              <div className="flex gap-2 items-center bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-2 text-xs text-stone-700">
                 <span className="font-extrabold shrink-0 text-stone-500 uppercase text-[10px]">Source Language:</span>
                 <select
                   value={selectedSourceLang}
@@ -1429,14 +2972,14 @@ export default function App() {
               {translatorResult && (
                 <div className="mt-5 space-y-4 pt-4 border-t border-stone-100">
                   <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-100/50">
-                    <p className="text-[11px] font-bold text-amber-800 tracking-wide uppercase">Simple Conversational</p>
+                    <p className="text-[11px] font-black text-amber-800 tracking-wide uppercase">Simple English Translation</p>
                     <p className="text-sm font-bold text-stone-800 mt-1 leading-snug">
                       "{translatorResult.translatedSimple}"
                     </p>
                   </div>
 
                   <div className="bg-rose-50/70 p-4 rounded-2xl border border-rose-100/50">
-                    <p className="text-[11px] font-bold text-rose-800 tracking-wide uppercase">Smart & Confident Accent</p>
+                    <p className="text-[11px] font-black text-rose-800 tracking-wide uppercase">Polished Conversational English</p>
                     <p className="text-sm font-bold text-stone-800 mt-1 leading-snug italic">
                       "{translatorResult.translatedSmart}"
                     </p>
@@ -1459,262 +3002,11 @@ export default function App() {
       {/* Billing VIP Checkout Overlays & Pages */}
       <AnimatePresence>
         {billingOverlayOpen && (
-          <div id="billing-overlay-container" className="absolute inset-0 z-50 bg-stone-900/60 flex items-end justify-center backdrop-blur-xs">
-            <motion.div 
-              id="billing-checkout-panel"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25 }}
-              className="w-full bg-slate-900 text-white rounded-t-[32px] p-6 max-h-[92vh] overflow-y-auto shadow-2xl z-50 select-none border-t border-purple-500/20"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-white/10" id="billing-header">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-amber-400 fill-amber-400" />
-                  <h3 id="billing-title" className="text-lg font-black tracking-tight text-white uppercase">VANI Premium Upgrade</h3>
-                </div>
-                <button 
-                  id="btn-close-billing"
-                  onClick={() => setBillingOverlayOpen(false)}
-                  className="px-3 py-1 bg-white/10 hover:bg-white/20 text-stone-200 rounded-full text-xs font-bold transition active:scale-95"
-                >
-                  Close
-                </button>
-              </div>
-
-              {/* Steps indicator */}
-              <div id="billing-steps-indicator" className="flex items-center justify-between my-5 px-2">
-                {[
-                  { id: 'select', label: '1. Choose Plan' },
-                  { id: 'vpa', label: '2. UPI Payment' },
-                  { id: 'success', label: '3. VIP Active' }
-                ].map((step) => {
-                  const isActive = activeBillingStep === step.id;
-                  return (
-                    <span 
-                      key={step.id} 
-                      className={`text-[10.5px] font-black uppercase tracking-wider ${
-                        isActive ? "text-amber-400" : "text-stone-400"
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                  );
-                })}
-              </div>
-
-              {/* Multi-step content layout */}
-              
-              {/* STEP 1: Plan selection card */}
-              {activeBillingStep === 'select' && (
-                <div id="billing-step-select" className="space-y-4">
-                  <div className="bg-white/5 border border-white/10 p-4 rounded-2xl text-left font-sans">
-                    <p className="text-amber-300 text-[10px] font-black tracking-wider uppercase mb-1">RECOMMENDED EXCLUSIVE ENTRY</p>
-                    <h4 className="text-sm font-black text-white">VIP Unlimited Speaking Access Trial</h4>
-                    <p className="text-xs text-stone-300 mt-1.5 leading-relaxed">
-                      Zero restriction audio dials, custom Accent Quotient feedback audits, full Scenario Drawer libraries & tailored bilingual explanations.
-                    </p>
-                  </div>
-
-                  <span className="text-[10px] uppercase font-black tracking-wider text-purple-300 block text-left">Select Premium Subscription tier:</span>
-                  
-                  <div className="space-y-2.5">
-                    {[
-                      { price: 7, plan: 'Trial', header: '🎟️ VIP Access Trial (7 days)', sub: 'Pay ₹7 today. Unlocks only the "Introduce Yourself" topic and max 5 text messages.' },
-                      { price: 99, plan: 'Monthly', header: '⚡ Monthly Basic Fluency Pass', sub: '₹99 / monthly. Unlocks Topics 1–28, unlimited VANI text chats.' },
-                      { price: 249, plan: 'Premium', header: '👑 VIP Premium Fluency Tier', sub: '₹249 / monthly. All 40 topics open, unlimited VANI voice dialer, IELTS & coaching modules.' },
-                      { price: 449, plan: 'Pro', header: '🏆 Lifetime PRO MASTER Access', sub: '₹449 lifetime. VIP interview streams, priority routes, priority queues.' }
-                    ].map((pOption) => (
-                      <button
-                        id={`btn-plan-${pOption.plan}`}
-                        key={pOption.price}
-                        onClick={() => {
-                          setSelectedPlanPrice(pOption.price);
-                        }}
-                        className={`w-full p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all ${
-                          selectedPlanPrice === pOption.price 
-                            ? "bg-purple-950/75 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)]" 
-                            : "bg-white/[0.04] border-white/10 hover:bg-white/[0.08]"
-                        }`}
-                      >
-                        <div className="pt-0.5">
-                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                            selectedPlanPrice === pOption.price ? "border-amber-400 bg-amber-400" : "border-stone-500"
-                          }`}>
-                            {selectedPlanPrice === pOption.price && <Check className="w-2.5 h-2.5 text-black stroke-[3px]" />}
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <h5 className="text-xs font-black text-white">{pOption.header}</h5>
-                          <p className="text-[10px] text-gray-400 mt-1 leading-normal">{pOption.sub}</p>
-                        </div>
-                        <span className="text-sm font-black text-amber-300 shrink-0">₹{pOption.price}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Payment Protection badge */}
-                  <div id="payment-safety-badge" className="p-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center gap-2.5 text-left">
-                    <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <p className="text-[10px] text-stone-400 leading-normal">
-                      Encrypted payments secured by NPCI Unified Payments Interface network. Cancel or transition subscription directly at any time.
-                    </p>
-                  </div>
-
-                  <button
-                    id="btn-billing-proceed-payment"
-                    onClick={() => setActiveBillingStep('vpa')}
-                    className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-98 text-black font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-md"
-                  >
-                    Proceed with Selected Plan (₹{selectedPlanPrice})
-                  </button>
-                </div>
-              )}
-
-              {/* STEP 2: UPI / VPA checkout */}
-              {activeBillingStep === 'vpa' && (
-                <div id="billing-step-vpa" className="space-y-4 text-left">
-                  <div className="bg-white/[0.04] border border-white/10 p-4 rounded-2xl">
-                    <p className="text-[10.5px] text-stone-400 font-bold uppercase">CHECKOUT AMOUNT</p>
-                    <div className="flex justify-between items-baseline mt-1">
-                      <span className="text-lg font-black text-white">VANI VIP Fluency Pass</span>
-                      <span className="text-2xl font-black text-amber-300">₹{selectedPlanPrice}.00</span>
-                    </div>
-                  </div>
-
-                  {/* Popular UPI apps selection tabs */}
-                  <div>
-                    <span className="text-[10px] uppercase font-black tracking-wider text-purple-300 block mb-2.5">Select your pre-installed UPI Banking App:</span>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { id: "gpay", label: "📱 GPay" },
-                        { id: "phonepe", label: "📱 PhonePe" },
-                        { id: "paytm", label: "📱 Paytm" },
-                        { id: "bhim", label: "📱 BHIM" }
-                      ].map((app) => (
-                        <button
-                          id={`btn-upi-${app.id}`}
-                          key={app.id}
-                          onClick={() => setSelectedUPIApp(app.id)}
-                          className={`p-2.5 rounded-xl text-center border font-bold text-xs transition-all flex flex-col items-center justify-center gap-1 ${
-                            selectedUPIApp === app.id
-                              ? "bg-purple-900/60 border-purple-500 text-white shadow-sm font-black"
-                              : "bg-white/[0.04] border-white/5 text-stone-300 hover:bg-white/[0.08]"
-                          }`}
-                        >
-                          <span className="font-extrabold">{app.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Manual Virtual Payment Address input */}
-                  <div className="space-y-1.5 pt-1">
-                    <label id="lbl-custom-vpa" className="text-[10.5px] uppercase font-black tracking-wider text-purple-300 block">Or enter custom UPI VPA ID:</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        id="input-custom-vpa"
-                        value={customVPA}
-                        onChange={(e) => setCustomVPA(e.target.value)}
-                        placeholder="e.g., mailid@okaxis or mobile@paytm"
-                        className="flex-1 bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-400 text-white placeholder-stone-500"
-                      />
-                      <button
-                        id="btn-vpa-validator"
-                        onClick={() => {
-                          if (customVPA.includes("@")) {
-                            alert("✅ VPA Verified successfully!");
-                          } else {
-                            alert("❌ Invalid VPA format. Please include '@' handle");
-                          }
-                        }}
-                        className="px-3 bg-white/10 hover:bg-white/20 text-stone-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
-                      >
-                        Verify
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Trigger UPI Payment simulation */}
-                  <div className="pt-2">
-                    <button
-                      id="btn-pay-submit"
-                      onClick={() => {
-                        setSubmittingPayment(true);
-                        setTimeout(() => {
-                          setSubmittingPayment(false);
-                          handleBillingSuccess(selectedPlanPrice === 7 ? "Trial" : selectedPlanPrice === 99 ? "Monthly" : selectedPlanPrice === 249 ? "Premium" : "Pro");
-                        }, 1300);
-                      }}
-                      disabled={submittingPayment}
-                      className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-600 hover:to-teal-500 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-md flex items-center justify-center gap-2"
-                    >
-                      {submittingPayment ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                          <span>Routing NPCI payment gateway...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-4 h-4 text-white" />
-                          <span>Complete UPI Auto-debit (₹{selectedPlanPrice})</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <button
-                    id="btn-billing-step-back"
-                    onClick={() => setActiveBillingStep('select')}
-                    className="w-full py-1 text-center text-stone-400 font-extrabold text-[10.5px] tracking-wider uppercase hover:text-white"
-                  >
-                    Go Back to Plans
-                  </button>
-                </div>
-              )}
-
-              {/* STEP 3: Success celebratory state */}
-              {activeBillingStep === 'success' && (
-                <div id="billing-step-success" className="space-y-5 text-center py-6">
-                  <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] select-none">
-                    <CheckCircle className="w-9 h-9 animate-bounce" />
-                  </div>
-
-                  <div className="space-y-1">
-                    <h4 className="text-lg font-black text-white">UPGRADE COMPLETE!</h4>
-                    <p className="text-xs text-stone-350 leading-relaxed px-4">
-                      Thank you! Your active continuous-learning billing status has been updated securely. VANI VIP Speech servers are now fully listening to your progress.
-                    </p>
-                  </div>
-
-                  {/* VIP active user credential badge */}
-                  <div className="bg-white/[0.03] border border-white/5 p-4 rounded-2xl max-w-sm mx-auto text-left space-y-2 font-mono text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-stone-400 font-bold">VIP Student Name:</span>
-                      <span className="text-indigo-300 font-black">{userName} (VIP Active)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-stone-400 font-bold">Network Gate:</span>
-                      <span className="text-emerald-405 font-black uppercase">UPI SECURE TRANSACTION // 200 OK</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-stone-400 font-bold">Expiry Target:</span>
-                      <span className="text-amber-400 font-black">Unlimited trial sync enabled</span>
-                    </div>
-                  </div>
-
-                  <button
-                    id="btn-complete-billing-close"
-                    onClick={() => setBillingOverlayOpen(false)}
-                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-md"
-                  >
-                    Start VIP Speech Practice Now
-                  </button>
-                </div>
-              )}
-            </motion.div>
+          <div className="absolute inset-0 bg-[#0D0D0D] z-50 flex flex-col overflow-y-auto no-scrollbar">
+            {renderPlanSelectionMarkup({ 
+              hideTrialCard: true, 
+              onBack: () => setBillingOverlayOpen(false) 
+            })}
           </div>
         )}
       </AnimatePresence>
@@ -2069,7 +3361,7 @@ export default function App() {
                         <div className="flex justify-between items-center">
                           <span>Allowed General Topics (Scenario Drawer):</span>
                           <span className="text-stone-800 font-extrabold">
-                            {userPlan === "pro" || userPlan === "premium" ? "All 40 Topics" : userPlan === "monthly" ? "28 Topics" : userPlan === "trial" && !trialExpired ? "1 Topic ('Introduce Yourself')" : "0 Topics (Locked)"}
+                            {userPlan === "pro" || userPlan === "premium" || userPlan === "monthly" ? "All 40 Topics" : userPlan === "trial" && !trialExpired ? "1 Topic ('Introduce Yourself')" : "0 Topics (Locked)"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2536,22 +3828,19 @@ export default function App() {
 
                 {/* Grid checklist of premium assets requested */}
                 <div className="bg-white p-4.5 rounded-3xl border border-stone-150 shadow-xxs space-y-3.5">
-                  <span className="text-[10px] uppercase font-black tracking-widest text-stone-500 block select-none border-b border-stone-100 pb-1.5">
-                    What you unlock in your student Account:
+                  <span className="text-[10px] uppercase font-black tracking-widest text-[#D81B60] block select-none border-b border-stone-100 pb-1.5">
+                    What you unlock in your ₹7 VIP Trial Account:
                   </span>
 
                   <div className="space-y-2.5">
                     {[
-                      { title: "300+ Real-Life Scenario Conversations", icon: "💬" },
-                      { title: "Interactive AI Dedicated Speaking Partner", icon: "🤖" },
-                      { title: "Native Indian & Global Accent Pronunciation Feedback", icon: "🎙️" },
-                      { title: "24x7 Ever-Patient AI English Tutor Support", icon: "👩‍🏫" },
-                      { title: "Daily Progress Metrics & Structured Trophies", icon: "📈" },
-                      { title: "Comprehensive Star Interview Practice Prep Rounds", icon: "💼" },
-                      { title: "Fear-Conquering Speech Confidence Building Drills", icon: "🔥" },
-                      { title: "Unrestricted, Non-stop Vocabulary Speaking Audits", icon: "📢" }
+                      { title: "Unlock 'Introduce Yourself' active practice module", icon: "🎙️" },
+                      { title: "VANI interactive conversational practice (5 msgs/session)", icon: "💬" },
+                      { title: "Native Indian regional accent pronunciation checks", icon: "📊" },
+                      { title: "Conquer speech hesitation confidence rounds", icon: "⚡" },
+                      { title: "All other 40+ topics & voice dialing will remain locked (Requires monthly subscription to open)", icon: "🔒" }
                     ].map((perk, i) => (
-                      <div key={i} className="flex gap-2 items-start text-xs font-semibold text-stone-800">
+                      <div key={i} className={`flex gap-2 items-start text-xs font-semibold ${perk.icon === "🔒" ? "text-stone-400 font-bold" : "text-stone-850"}`}>
                         <span className="text-sm shrink-0 leading-none mt-0.5">{perk.icon}</span>
                         <div className="space-y-0.5">
                           <span className="block">{perk.title}</span>
@@ -2561,8 +3850,8 @@ export default function App() {
                   </div>
 
                   <div className="pt-2 bg-gradient-to-r from-amber-50 to-rose-50 rounded-2xl p-3 border border-amber-100 text-center space-y-1">
-                    <span className="text-[11px] font-black text-rose-500 block">₹7.00 for full 7-day Premium Access</span>
-                    <span className="text-[9px] text-stone-500 font-bold block">No auto-deduct trap. After trial ends, continue with membership plan manually if desired.</span>
+                    <span className="text-[11px] font-black text-rose-500 block">₹7.00 for full 7-day VIP Trial Access</span>
+                    <span className="text-[9px] text-stone-500 font-bold block">No auto-deduct trap! Unused scenarios stay locked. Upgrade to basic monthly to unlock rest.</span>
                   </div>
                 </div>
 
@@ -2733,8 +4022,8 @@ export default function App() {
                   <h3 className="text-xl font-black text-indigo-950 tracking-tight leading-none">
                     Congratulations!
                   </h3>
-                  <p className="text-sm font-bold text-stone-800 tracking-tight">
-                    Your 7-day premium trial is now active.
+                  <p className="text-xs font-bold text-stone-700 tracking-tight">
+                    Your ₹7 VIP Trial is active. Only 'Introduce Yourself' is unlocked. Other features will unlock on Monthly/Premium subscription.
                   </p>
                   
                   <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full px-4 py-1 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest mx-auto">
@@ -2744,22 +4033,22 @@ export default function App() {
                 </div>
 
                 <div className="bg-white p-5 rounded-3xl border border-stone-150 shadow-xxs space-y-4">
-                  <span className="text-[10px] uppercase font-black tracking-widest text-indigo-700 block">
-                    All premium elements are now unblocked:
+                  <span className="text-[10px] uppercase font-black tracking-widest text-[#D81B60] block">
+                    Your Student Access Status:
                   </span>
 
-                  <div className="grid grid-cols-2 gap-2 text-stone-700 select-none">
+                  <div className="grid grid-cols-2 gap-2 text-stone-705 select-none">
                     {[
-                      { icon: "🎙️", label: "AI Calls Voice Dials" },
-                      { icon: "📂", label: "Scenario Conversations" },
-                      { icon: "🤖", label: "Unlimited AI Practice" },
-                      { icon: "📊", label: "AI Accent Feedback" },
-                      { icon: "📚", label: "All Premium Lessons" },
-                      { icon: "📝", label: "Progress Reports Insights" }
+                      { icon: "🎙️", label: "Introduce Yourself Unlocked" },
+                      { icon: "🤖", label: "Interactive VANI Chat" },
+                      { icon: "📊", label: "Accent Feedback On" },
+                      { icon: "🔒", label: "Voice Dial Locked" },
+                      { icon: "🔒", label: "40+ Scenarios Locked" },
+                      { icon: "🔒", label: "STAR Interview Locked" }
                     ].map((perk, i) => (
-                      <div key={i} className="bg-stone-50 p-2.5 rounded-xl border border-stone-150/80 flex items-center gap-2">
+                      <div key={i} className={`p-2.5 rounded-xl border flex items-center gap-2 ${perk.icon === "🔒" ? "bg-stone-50 border-stone-100 text-stone-400" : "bg-emerald-50/50 border-emerald-150 text-emerald-950 font-bold"}`}>
                         <span className="text-base shrink-0">{perk.icon}</span>
-                        <span className="text-[10px] uppercase font-black tracking-tight leading-3 text-stone-600 block">{perk.label}</span>
+                        <span className="text-[9px] uppercase font-black tracking-tight leading-3 block">{perk.label}</span>
                       </div>
                     ))}
                   </div>
@@ -3108,8 +4397,16 @@ export default function App() {
             {/* Section: Latest & Trending Yellow-to-Cyan Gradient Banner */}
             <div 
               onClick={() => {
-                setScreen("translate"); // Lead to Translator space
-                playTTS("Explore the Latest space to fine-tune your pronunciation accent directly.", 999);
+                openConversationTopic({ 
+                  id: 0, 
+                  title: "Talk About Anything", 
+                  cat: "Speaking", 
+                  theme: "General", 
+                  locked: false, 
+                  done: false, 
+                  img: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=500&q=75" 
+                });
+                playTTS("Let's talk in English! You can type in any regional Indian language or Hinglish, and VANI will automatically translate it for you inside the chat.", 999);
               }}
               className="bg-gradient-to-r from-amber-100 via-amber-50 to-cyan-100 border border-amber-200/40 rounded-3xl p-5 shadow-sm text-left relative overflow-hidden flex gap-4 items-center justify-between cursor-pointer hover:shadow-md transition"
             >
@@ -3135,18 +4432,21 @@ export default function App() {
             </div>
 
             {/* Streak trigger statistics tracker card */}
-            <div className="bg-white p-4 rounded-2xl border border-stone-150 text-left flex items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <p className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">Coach Speaking Streak</p>
-                <p className="text-[11.5px] font-black text-stone-800">Done {dailyGoalDone} of {dailyGoalMins} mins daily goal!</p>
+            <div className="bg-white p-4 rounded-2xl border border-stone-200 text-left flex items-center justify-between gap-3 shadow-sm">
+              <div className="space-y-1">
+                <p className="text-[9px] text-stone-400 font-extrabold uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                  <span>Coach Speaking Goal</span>
+                </p>
+                <p className="text-[11px] font-extrabold text-stone-800">
+                  Progressing <span className="text-rose-500 font-black">{dailyGoalDone}</span> of <span className="text-stone-500">{dailyGoalMins} mins</span> goal!
+                </p>
               </div>
               <button 
                 onClick={() => {
-                  setStreak(p => p + 1);
-                  setXp(p => p + 20);
-                  try { confetti({ particleCount: 15 }); } catch(e){}
+                  handleProgressStreak();
                 }}
-                className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-xl text-rose-500 text-xxs font-black uppercase tracking-wider active:scale-95 transition"
+                className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100/80 cursor-pointer border border-rose-100 px-3 py-2 rounded-xl text-rose-500 text-xxs font-black uppercase tracking-widest active:scale-95 transition-all duration-200"
               >
                 <Flame className="w-3.5 h-3.5 fill-rose-500 text-rose-500 animate-bounce" />
                 <span>{streak} Days</span>
@@ -3331,403 +4631,133 @@ export default function App() {
           </motion.div>
         )}
 
-        {/* SCREEN 3: REGIONAL INDIAN LANGUAGE TRANSLATION WORKSPACE */}
-        {screen === "translate" && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-5 space-y-5"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <Languages className="w-6 h-6 text-rose-500" />
-                <h2 className="text-xl font-black text-stone-800 tracking-tight">Regional Translator</h2>
-              </div>
-              <p className="text-xs text-stone-500 mt-1 leading-relaxed text-left">
-                Stuck on how to say something? Select your native regional language, type your thought, or speak directly into the microphone for fluid AI English revisions instantly!
-              </p>
-            </div>
 
-            {/* Language Selector Grid */}
-            <div className="bg-white p-4 rounded-2xl border border-stone-150 shadow-sm">
-              <p className="text-xxs font-black text-stone-400 tracking-wider uppercase mb-2.5 text-left">Translate native language thoughts:</p>
-              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto no-scrollbar pr-1">
-                {INDIAN_LANGUAGES.map((lang) => {
-                  const isCur = selectedSourceLang === lang.code;
-                  return (
-                    <button
-                      key={lang.code}
-                      onClick={() => {
-                        setSelectedSourceLang(lang.code);
-                        setTranslatorResult(null);
-                      }}
-                      className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-black transition text-left ${isCur ? "border-rose-400 bg-rose-50/70 text-rose-600" : "border-stone-200 hover:bg-stone-50 text-stone-700"}`}
-                    >
-                      <span>{lang.flag}</span>
-                      <span className="truncate">{lang.name.split(" ")[0]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Input Form Box */}
-            <div className="bg-white p-4 rounded-2xl border border-stone-150 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-xxs font-black text-stone-400 tracking-wider uppercase">Type or Speak your thought in {selectedSourceLang}:</p>
-                <span className="bg-stone-100 text-stone-600 font-bold px-2 py-0.5 rounded text-[10px]">Speech Recognition Enabled</span>
-              </div>
-
-              <div className="relative">
-                <textarea
-                  value={translatorInput}
-                  onChange={(e) => setTranslatorInput(e.target.value)}
-                  placeholder={
-                    selectedSourceLang === "Bengali" 
-                      ? "e.g., Ami bhalo achi or আমার টিকিট এখনও কনফার্ম হয়নি..."
-                      : selectedSourceLang === "Hindi"
-                      ? "e.g., Flight ticket confirm ho gayi hai or मुझे कल छुट्टी चाहिए..."
-                      : selectedSourceLang === "Telugu"
-                      ? "e.g., Naku tondaraga vellali or నాకు సహాయం కావాలి..."
-                      : selectedSourceLang === "Tamil"
-                      ? "e.g., Yenakku ungalai pidikkum or எனக்கு ஒரு உதவி வேண்டும்..."
-                      : `Type your ${selectedSourceLang} thought here...`
-                  }
-                  rows={3}
-                  className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 font-medium placeholder-stone-400"
-                />
-                {/* Speech sound recognition mic button */}
-                <button
-                  type="button"
-                  onClick={startTranslatorVoiceRecognition}
-                  className={`absolute right-3.5 bottom-3.5 p-2 rounded-full transition-all active:scale-90 ${
-                    isTranslatorListening
-                      ? "bg-rose-500 text-white animate-pulse shadow-md"
-                      : "bg-rose-100 text-rose-500 hover:bg-rose-200"
-                  }`}
-                  title={`Speak in ${selectedSourceLang}`}
-                >
-                  {isTranslatorListening ? (
-                    <span className="flex items-center justify-center relative w-5 h-5">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75 animate-ping" />
-                      <Mic className="w-4 h-4 shrink-0 z-10" />
-                    </span>
-                  ) : (
-                    <Mic className="w-4 h-4 shrink-0" />
-                  )}
-                </button>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTranslatorInput("")}
-                  disabled={translating || !translatorInput.trim()}
-                  className="px-4 py-3 bg-stone-100 font-extrabold text-xs text-stone-500 rounded-xl hover:bg-stone-200 transition active:scale-95 shrink-0"
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={() => runQuickTranslate()}
-                  disabled={translating || !translatorInput.trim()}
-                  className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl uppercase tracking-wider transition active:scale-95 shadow-xs flex items-center justify-center gap-2"
-                >
-                  {translating ? (
-                    <>
-                      <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      <span>Translating regional thoughts...</span>
-                    </>
-                  ) : (
-                    <span>Refine to English</span>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Translation Output Cards */}
-            {translatorResult && (
-              <div className="space-y-3">
-                <div className="bg-white rounded-3xl p-5 border border-stone-150 shadow-sm text-left relative overflow-hidden">
-                  <span className="bg-emerald-500 text-white text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md">Simple Conversational</span>
-                  <p className="text-base font-extrabold text-stone-800 leading-snug mt-2.5">
-                    "{translatorResult.translatedSimple}"
-                  </p>
-                  
-                  <div className="mt-4 flex justify-between items-center pt-3 border-t border-stone-100">
-                    <span className="text-xxs font-bold text-stone-400">Polite, clean alternative for beginner level</span>
-                    <button
-                      onClick={() => playTTS(translatorResult.translatedSimple, 901)}
-                      disabled={ttsLoading}
-                      className="p-2 rounded-full hover:bg-stone-50 text-rose-500 active:scale-90 transition border border-stone-100 shadow-xxs shrink-0"
-                      title="Listen Audio"
-                    >
-                      <Volume2 className={`w-4 h-4 ${playingAudioIndex === 901 ? "animate-pulse text-emerald-600" : ""}`} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-stone-900 text-white rounded-3xl p-5 shadow-sm text-left relative overflow-hidden">
-                  <div className="absolute right-0 bottom-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl" />
-                  <span className="bg-rose-500 text-white text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md">Smart & Confident Accent</span>
-                  <p className="text-base font-extrabold leading-snug mt-2.5 italic">
-                    "{translatorResult.translatedSmart}"
-                  </p>
-                  
-                  <div className="mt-4 flex justify-between items-center pt-3 border-t border-white/10 relative z-10">
-                    <span className="text-xxs font-bold text-stone-400">High impact vocabulary option for fluent rounds</span>
-                    <button
-                      onClick={() => playTTS(translatorResult.translatedSmart, 902)}
-                      disabled={ttsLoading}
-                      className="p-2 rounded-full hover:bg-stone-800 text-rose-400 active:scale-90 transition border border-white/10 shrink-0 bg-stone-900"
-                      title="Listen Audio"
-                    >
-                      <Volume2 className={`w-4 h-4 ${playingAudioIndex === 902 ? "animate-pulse text-emerald-400" : ""}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Pronunciation Advice Section */}
-                <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-100/50 text-left flex gap-3">
-                  <Lightbulb className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-stone-800 leading-none">Pronunciation & Accent Coach</p>
-                    <p className="text-[11.5px] text-stone-600 mt-1 lines-normal">{translatorResult.pronunciationTip}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Wisdom Quote badge */}
-            <div className="bg-gradient-to-tr from-stone-800 to-stone-900 p-6 rounded-3xl text-white text-center text-sm shadow-md space-y-4">
-              <span className="text-3xl">🔑</span>
-              <p className="font-semibold italic text-slate-100 leading-snug">
-                "{QUOTES[1]}"
-              </p>
-              <div className="text-xxs tracking-widest uppercase font-black text-rose-400">DAILY ACCENT WISDOM</div>
-            </div>
-          </motion.div>
-        )}
 
         {/* SCREEN 4: DIAL CALL VOICE PRACTICE BOARD */}
         {screen === "call" && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="p-5 flex-1 flex flex-col justify-between overflow-y-auto no-scrollbar space-y-4"
+            className="flex-1 flex flex-col justify-center overflow-y-auto no-scrollbar p-6 bg-stone-50"
+            id="call-screen-container"
           >
-            <div className="text-center space-y-1 py-1">
-              <h2 className="text-xl font-black text-indigo-950 tracking-tight flex items-center justify-center gap-1.5">
-                <span>🎙️</span> VANI Voice Personality Station
-              </h2>
-              <p className="text-[11.5px] text-stone-500 font-medium">Practice accent, holding debates, and pronunciation with VANI</p>
-            </div>
-
-            {/* 🎶 AMBIENT BACKGROUND MUSIC ENGINE CONTROLS */}
-            <div className="bg-white p-4 rounded-2xl border border-indigo-100 text-left space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1">
-                  <PlayCircle className="w-3.5 h-3.5 text-rose-500" />
-                  Musical Response Engine
-                </span>
-                <span className="text-xxs font-bold text-stone-400">Plays background ambience during talks</span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-1.5 pt-1">
-                {[
-                  { id: "lofi", label: "🎧 Lo-Fi", desc: "Study Beats" },
-                  { id: "bengali", label: "🪕 Santur", desc: "Bengali Raga" },
-                  { id: "celestial", label: "✨ Pad", desc: "Glow Pad" },
-                  { id: "off", label: "🔇 Silent", desc: "Ambient off" }
-                ].map((track) => (
-                  <button
-                    key={track.id}
-                    onClick={() => selectMusicTrack(track.id as any)}
-                    className={`p-2 rounded-xl text-center flex flex-col items-center justify-center transition-all ${
-                      musicSelected === track.id 
-                        ? "bg-rose-500 text-white shadow-md scale-102 border-rose-500" 
-                        : "bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200"
-                    }`}
-                  >
-                    <span className="text-xs font-black select-none">{track.label}</span>
-                    <span className={`text-[8px] mt-0.5 leading-none ${musicSelected === track.id ? "text-white/80" : "text-stone-400"}`}>{track.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sound Reactive UI & Captions Panel */}
-            <div className="flex-1 flex flex-col items-center justify-center my-2 space-y-4">
-              <div className="relative flex items-center justify-center">
-                {/* Simulated radar rings when avatar glows */}
-                {callActive && (
-                  <>
-                    <div className="absolute w-40 h-40 rounded-full border-2 border-indigo-500/20 animate-ping" />
-                    <div className="absolute w-48 h-48 rounded-full border border-indigo-500/10 animate-pulse" />
-                  </>
-                )}
-
-                <div className={`w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-white transition-all transform duration-300 ${
-                  waveHeaving 
-                    ? "bg-gradient-to-tr from-purple-600 via-rose-500 to-amber-400 scale-102 rotate-6 shadow-[0_0_20px_rgba(236,72,153,0.4)]" 
-                    : "bg-gradient-to-tr from-indigo-700 to-slate-800"
-                }`}>
-                  <span className="text-4xl select-none animate-bounce">{waveHeaving ? "👩‍🏫" : "🎙️"}</span>
-                  <p className="text-white text-[9px] font-black tracking-widest uppercase mt-2">{callStatusText}</p>
-                </div>
-              </div>
-
-              {/* Dynamic Sound Waves */}
-              <div className="flex items-end justify-center gap-1 h-9 my-1 select-none">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
-                  const heights = ["h-3", "h-6", "h-12", "h-8", "h-10", "h-4", "h-14", "h-9", "h-5", "h-12", "h-7", "h-11", "h-6", "h-10", "h-4"];
-                  return (
-                    <div 
-                      key={i} 
-                      className={`w-1.5 rounded-full transition-all duration-350 ${
-                        waveHeaving 
-                          ? `bg-gradient-to-t from-pink-500 to-purple-500 ${heights[(i + Math.floor(Math.random() * 5)) % heights.length]} animate-pulse` 
-                          : "bg-indigo-300/40 h-1.5"
-                      }`} 
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Word-by-Word Captain Animators */}
-              {currentCaptionWords.length > 0 && (
-                <div className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-center mt-1 z-10 shadow-lg">
-                  <p className="text-[10px] text-pink-400 uppercase font-black tracking-widest mb-2 leading-none">📢 REAL-TIME VANI CAPTIONS (ACTIVE SYNC)</p>
-                  <p className="flex flex-wrap items-center justify-center gap-1.5 text-[17px] font-extrabold leading-relaxed text-slate-100">
-                    {currentCaptionWords.map((word, idx) => {
-                      const active = idx === captionWordIndex;
-                      return (
-                        <span 
-                          key={idx} 
-                          className={`${active ? "text-amber-300 scale-110 px-1 rounded bg-white/10" : "text-stone-400"} transition-all duration-150`}
-                        >
-                          {word}
-                        </span>
-                      );
-                    })}
-                  </p>
-                </div>
-              )}
-
-              {/* What the user spoke */}
-              {callUserSpokenText && (
-                <div className="w-full bg-stone-100 border border-stone-200 rounded-2xl p-3.5 text-left shadow-xxs">
-                  <span className="text-[8.5px] font-black tracking-widest text-[#137333] uppercase block leading-none">You Spoke</span>
-                  <p className="text-[16px] font-bold text-stone-700 leading-snug mt-1.5 italic">"{callUserSpokenText}"</p>
-                </div>
-              )}
-
-              {/* VANI'S INSTANT RECTIFICATION AND REMEDIAL EDUCATION */}
-              {(callGrammarCorrection || callVocabularyBoost) && (
-                <div className="w-full bg-rose-50 border border-rose-200/90 p-4 rounded-2xl space-y-3 shadow-xxs text-left animate-fadeIn">
-                  <div className="flex items-center gap-1.5 pb-2 border-b border-rose-100 font-black text-[9.5px] text-rose-600 tracking-wider">
-                    <span className="text-xs">🩹</span>
-                    <span>VANI'S INSTANT RECTIFICATION</span>
-                  </div>
-                  
-                  {callGrammarCorrection && (
-                    <div>
-                      <span className="font-extrabold text-[#b06000] text-[8px] tracking-wider uppercase block">Grammar Tuning</span>
-                      <p className="text-[16px] font-extrabold text-stone-850 mt-1 leading-snug">{callGrammarCorrection}</p>
-                    </div>
-                  )}
-                  
-                  {callVocabularyBoost && (
-                    <div>
-                      <span className="font-extrabold text-indigo-700 text-[8px] tracking-wider uppercase block">Confidence vocabulary upgrade</span>
-                      <p className="text-[16px] font-extrabold text-[#202124] mt-1 leading-snug">{callVocabularyBoost}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Real-time Pronunciation Detector widget */}
-              <div className="w-full bg-white p-4 rounded-2xl border border-stone-150 shadow-sm text-left">
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-400 text-xxs font-black tracking-widest uppercase flex items-center gap-1">
-                    <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
-                    Pronunciation Accuracy Audit
-                  </span>
-                  <button 
-                    onClick={() => {
-                      setAccentScore(Math.floor(Math.random() * 11) + 88);
-                      alert("🎤 Accent analyzed using Coach VANI metrics! Auditing phonetics...");
-                    }}
-                    className="text-indigo-600 font-black text-xxs tracking-wider uppercase flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3 h-3 animate-spin" /> Recalculate
-                  </button>
+            {!canUseVoiceStation() ? (
+              /* LOCKED STATE (trial users) */
+              <div 
+                id="voice-station-locked-state" 
+                className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none"
+              >
+                <div 
+                  id="lock-icon-container" 
+                  className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-6 border border-stone-200 shadow-xs"
+                >
+                  <span className="text-4xl">🔒</span>
                 </div>
                 
-                <div className="mt-2.5 flex justify-between items-baseline">
-                  <span className="text-stone-700 text-xs font-bold font-mono">Fluency Accuracy Accent Quotient:</span>
-                  <span className="text-rose-500 font-black text-sm">{accentScore}%</span>
+                <h2 
+                  id="locked-title" 
+                  className="text-2xl font-black text-rose-650 tracking-tight uppercase"
+                >
+                  VANI Voice Personality Station
+                </h2>
+                
+                <p 
+                  id="locked-description" 
+                  className="text-stone-605 font-bold text-sm max-w-sm mt-4 leading-relaxed"
+                >
+                  This feature is not available on Monthly but avalo at Premium plans and above.
+                </p>
+
+                <div className="mt-8 w-full max-w-xs space-y-3">
+                  <button
+                    id="btn-upgrade-monthly"
+                    onClick={() => {
+                      setSelectedPlanPrice(99);
+                      setBillingOverlayOpen(true);
+                    }}
+                    className="w-full py-3.5 px-6 rounded-2xl font-black uppercase text-xs tracking-wider bg-rose-500 hover:bg-rose-600 active:scale-98 text-white shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    🚀 Upgrade to Monthly — ₹99/mo
+                  </button>
+                  
+                  <p 
+                    id="locked-subtext" 
+                    className="text-stone-400 text-[11px] font-semibold"
+                  >
+                    Upgrade to speak live with VANI and practice real conversations.
+                  </p>
                 </div>
-                <div className="w-full bg-stone-100 h-2 rounded-full mt-1.5 overflow-hidden">
-                  <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${accentScore}%` }} />
-                </div>
+                
+                <button
+                  id="locked-go-back"
+                  onClick={() => setScreen("home")}
+                  className="mt-10 text-stone-500 font-bold hover:underline py-1 text-xs uppercase tracking-wider"
+                >
+                  Go Back Home
+                </button>
               </div>
-            </div>
+            ) : (
+              /* UNLOCKED STATE (monthly/premium) */
+              <div 
+                id="voice-station-unlocked-state" 
+                className="w-full max-w-md mx-auto flex flex-col items-center justify-center p-8 text-center text-white bg-slate-900 rounded-3xl border border-white/5 shadow-2xl relative select-none my-auto"
+              >
+                <div 
+                  id="call-icon-container" 
+                  className="w-24 h-24 bg-gradient-to-tr from-purple-600 via-rose-500 to-amber-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(168,85,247,0.45)] animate-pulse"
+                >
+                  <span className="text-4xl animate-bounce">📞</span>
+                </div>
+                
+                <h2 
+                  id="unlocked-title" 
+                  className="text-2xl font-black text-white tracking-tight uppercase"
+                >
+                  VANI Voice Personality Station
+                </h2>
+                
+                <p 
+                  id="unlocked-subtitle" 
+                  className="text-stone-300 font-medium text-sm max-w-sm mt-4 leading-relaxed"
+                >
+                  Have a real-time spoken conversation with Coach VANI. Practice pronunciation, fluency, and natural English speech.
+                </p>
 
-            {/* Toggle features bar */}
-            <div className="bg-white p-3.5 rounded-2xl border border-stone-150 grid grid-cols-2 gap-2 text-xxs font-black tracking-wider uppercase text-stone-600">
-              <button 
-                onClick={() => {
-                  setContinuousListening(!continuousListening);
-                  alert(continuousListening ? "Continuous listening off" : "Continuous listening active! Speak continuously without clicking.");
-                }}
-                className={`p-2 rounded-xl flex items-center gap-1.5 justify-center border transition ${continuousListening ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-stone-50 border-stone-200"}`}
-              >
-                <span>🎙️ {continuousListening ? "Continuous Listening: On" : "Continuous Mode: Off"}</span>
-              </button>
-              
-              <button 
-                onClick={toggleSpeechPauseResume}
-                disabled={!waveHeaving}
-                className="p-2 bg-stone-50 hover:bg-stone-100 rounded-xl flex items-center gap-1.5 justify-center border border-stone-200 active:scale-95 transition disabled:opacity-45"
-              >
-                {isSpeechSynthPaused ? (
-                  <>
-                    <Play className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Resume VANI</span>
-                  </>
-                ) : (
-                  <>
-                    <Pause className="w-3.5 h-3.5 text-rose-500" />
-                    <span>Pause VANI</span>
-                  </>
+                <div className="mt-8 w-full max-w-xs space-y-4">
+                  <button
+                    id="btn-start-voice-practice"
+                    onClick={() => {
+                      setVoiceToastMessage("Voice session starting...");
+                      setTimeout(() => {
+                        setVoiceToastMessage("");
+                      }, 4000);
+                    }}
+                    className="w-full py-4 px-6 rounded-2xl font-black uppercase text-xs tracking-wider bg-violet-600 hover:bg-violet-700 active:scale-98 text-white shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    🎙️ Start Voice Practice
+                  </button>
+
+                  <button
+                    id="btn-voice-back"
+                    onClick={() => setScreen("home")}
+                    className="w-full text-center text-xs text-stone-400 hover:text-white font-bold uppercase tracking-wider py-1"
+                  >
+                    Back
+                  </button>
+                </div>
+
+                {/* Nice Toast simulation overlay */}
+                {voiceToastMessage && (
+                  <div 
+                    id="voice-toast-notification"
+                    className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-violet-950/90 border border-violet-500/30 text-violet-200 text-xs font-extrabold uppercase px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 animate-bounce"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-violet-400 animate-ping" />
+                    <span>{voiceToastMessage}</span>
+                  </div>
                 )}
-              </button>
-            </div>
-
-            {/* Speaking controls */}
-            <div className="space-y-3 pt-1 text-center">
-              {callActive ? (
-                <button
-                  onClick={endVoiceCall}
-                  className="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 active:scale-98 transition text-white font-black rounded-2xl shadow-md tracking-wider uppercase text-xs"
-                >
-                  Disconnect Live Call
-                </button>
-              ) : (
-                <button
-                  onClick={startVoiceCall}
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 active:scale-98 transition text-white font-black rounded-2xl shadow-md tracking-wider uppercase text-xs flex items-center justify-center gap-2"
-                >
-                  <PhoneCall className="w-4 h-4 text-white" /> Start Continuous Speaking Practice
-                </button>
-              )}
-
-              <button
-                onClick={() => setScreen("home")}
-                className="w-full text-center text-xs text-stone-500 font-bold hover:underline py-1"
-              >
-                Go Back Home
-              </button>
-            </div>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -3810,6 +4840,14 @@ export default function App() {
                         )}
                       </div>
                     </div>
+
+                    {/* VANI MULTILINGUAL TRANSLATION BLOCK */}
+                    {isUser && (m.translationLoading || m.translationText) && (
+                      <TranslationBlock 
+                        text={m.translationText} 
+                        loading={m.translationLoading === true} 
+                      />
+                    )}
 
                     {/* VANI EDUCATIONAL PEDAGOGICAL TIPS BLOCK */}
                     {!isUser && (m.grammarFeedback || m.vocabBoost) && (
@@ -3911,7 +4949,6 @@ export default function App() {
           {[
             { id: "home", icon: <Home className="w-5 h-5" />, label: "Home" },
             { id: "topics", icon: <BookOpen className="w-5 h-5" />, label: "Topics" },
-            { id: "translate", icon: <Languages className="w-5 h-5" />, label: "Translate" },
             { id: "call", icon: <PhoneCall className="w-5 h-5" />, label: "Call" },
           ].map((tab) => {
             const isActive = screen === tab.id;

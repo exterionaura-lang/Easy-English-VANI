@@ -33,6 +33,8 @@ export interface Message {
   vocabBoost?: string;
   bilingualTip?: string;
   audioUrl?: string; // Cache for base64 sound
+  translationText?: string | null;
+  translationLoading?: boolean;
 }
 
 export interface TranslationResult {

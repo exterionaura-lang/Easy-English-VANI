@@ -1,9 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-poppins: "Poppins", sans-serif;
+  --font-cormorant: "Cormorant Garamond", serif;
 }
 
 body {
@@ -52,4 +54,34 @@ html {
 }
 .animate-wave-5 {
   animation: audioWave 1.4s ease-in-out infinite 0.3s;
+}
+
+.feature-row {
+  font-size     : 13px;
+  color         : #B0B0B0;
+  font-family   : var(--font-poppins);
+  display       : flex;
+  align-items   : flex-start;
+  gap           : 8px;
+  line-height   : 1.4;
+}
+
+.feature-row.locked {
+  color         : #555555;
+}
+
+.feature-row.gold {
+  color         : #E8C97A;
+}
+
+.feature-row.purple {
+  color         : #C4B5FD;
+}
+
+.plan-card:active {
+  transform     : scale(0.98);
+}
+
+.plan-card.selected {
+  box-shadow    : 0 0 0 3px #FF8C4A;
 }
