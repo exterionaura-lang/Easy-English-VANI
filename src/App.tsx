@@ -445,6 +445,13 @@ const getLangSpeechCode = (langCode: string): string => {
   }
 };
 export default function App() {
+  const [appStage, setAppStage] = useState<string>(() => {
+    return localStorage.getItem("vani_opening_completed") === "true" ? "app" : "splash";
+  });
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [loginOtpSent, setLoginOtpSent] = useState<boolean>(false);
+  const [otpValue, setOtpValue] = useState<string>("");
+
   // Screens: "onboarding", "home", "topics", "translate", "call", "chat"
   const [screen, setScreen] = useState<string>(() => {
     const plan = localStorage.getItem("userPlan") || localStorage.getItem("vani_user_plan") || "none";
@@ -514,6 +521,15 @@ export default function App() {
       return sessionMsgCount < 5;
     return false;
   }
+
+  useEffect(() => {
+    if (appStage === "splash") {
+      const t = setTimeout(() => {
+        setAppStage("opening");
+      }, 2800);
+      return () => clearTimeout(t);
+    }
+  }, [appStage]);
 
   // Auto launch flow hook
   useEffect(() => {
@@ -2735,7 +2751,33 @@ export default function App() {
   return (
     <div className="relative max-w-md mx-auto min-h-screen flex flex-col bg-stone-50 overflow-hidden shadow-2xl border-x border-stone-200">
       
-      {/* Global Celebrations and Milestone Toasts */}
+      {/* ── NEW: Splash Screen ── */}
+      {appStage === "splash" && (
+        <SplashScreen />
+      )}
+
+      {/* ── NEW: Opening Screen ── */}
+      {appStage === "opening" && (
+        <OpeningScreen
+          phoneNumber={phoneNumber}
+          setPhoneNumber={setPhoneNumber}
+          otpSent={loginOtpSent}
+          setOtpSent={setLoginOtpSent}
+          otpValue={otpValue}
+          setOtpValue={setOtpValue}
+          onContinue={() => {
+            localStorage.setItem("vani_opening_completed", "true");
+            setAppStage("app");
+          }}
+          onShowTerms={() => setShowTerms(true)}
+          onShowPrivacy={() => setShowPrivacy(true)}
+        />
+      )}
+
+      {/* ── EXISTING APP ── */}
+      {appStage === "app" && (
+        <>
+          {/* Global Celebrations and Milestone Toasts */}
       <AnimatePresence>
         {activeToast && (
           <motion.div
@@ -4975,6 +5017,1242 @@ export default function App() {
         </div>
       )}
 
+        </>
+      )}
+
+      {/* ── NEW: Terms Modal (global) ── */}
+      {showTerms && (
+        <TermsSheet
+          onClose={() => setShowTerms(false)}
+        />
+      )}
+
+      {/* ── NEW: Privacy Modal (global) ── */}
+      {showPrivacy && (
+        <PrivacySheet
+          onClose={() => setShowPrivacy(false)}
+        />
+      )}
+
+    </div>
+  );
+}
+
+// ── Splash Screen ─────────────────────────────
+function SplashScreen() {
+  return (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      background:
+        "linear-gradient(180deg," +
+        "#EEF4FF 0%, #F8F0FF 50%," +
+        "#FFF5E6 100%)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 999,
+      overflow: "hidden"
+    }}>
+
+      {/* Twinkling star particles */}
+      <style>{`
+        @keyframes twinkle {
+          0%,100% { opacity:0.2; transform:scale(0.8); }
+          50% { opacity:1; transform:scale(1.2); }
+        }
+        @keyframes floatUp {
+          from { opacity:0; transform:translateY(30px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes glowPulse {
+          0%,100% { filter: drop-shadow(0 0 8px rgba(139,47,201,0.4)); }
+          50% { filter: drop-shadow(0 0 20px rgba(139,47,201,0.8)); }
+        }
+        @keyframes dot {
+          0%, 100% { transform: scale(1); opacity: 0.4; }
+          50% { transform: scale(1.4); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Stars background */}
+      {[...Array(12)].map((_,i) => (
+        <div key={i} style={{
+          position: "absolute",
+          width: i%3===0 ? 6 : 4,
+          height: i%3===0 ? 6 : 4,
+          borderRadius: "50%",
+          background: "#8B2FC9",
+          top: `${10 + (i * 7.2) % 70}%`,
+          left: `${5 + (i * 13) % 90}%`,
+          animation:
+            `twinkle ${1.5 + i*0.3}s ` +
+            `${i*0.2}s ease-in-out infinite`,
+          opacity: 0.3
+        }} />
+      ))}
+
+      {/* Devi Saraswati Avatar Illustration */}
+      {/* SVG-based artistic avatar */}
+      <div style={{
+        animation:
+          "floatUp 1s ease forwards, " +
+          "glowPulse 3s 1s ease-in-out infinite",
+        marginBottom: 24
+      }}>
+        <svg width="160" height="180"
+          viewBox="0 0 160 180"
+          xmlns="http://www.w3.org/2000/svg">
+
+          {/* Halo / divine glow ring */}
+          <ellipse cx="80" cy="42" rx="44" ry="44"
+            fill="none"
+            stroke="url(#haloGrad)"
+            strokeWidth="3"
+            strokeDasharray="6 4"
+            opacity="0.7"/>
+          <defs>
+            <radialGradient id="haloGrad">
+              <stop offset="0%"
+                stopColor="#FFD700"/>
+              <stop offset="100%"
+                stopColor="#FF8C00"/>
+            </radialGradient>
+            <radialGradient id="skinGrad"
+              cx="50%" cy="40%">
+              <stop offset="0%"
+                stopColor="#FDDBB4"/>
+              <stop offset="100%"
+                stopColor="#F5C99A"/>
+            </radialGradient>
+            <linearGradient id="sareeGrad"
+              x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"
+                stopColor="#8B2FC9"/>
+              <stop offset="100%"
+                stopColor="#E07A5F"/>
+            </linearGradient>
+          </defs>
+
+          {/* Inner halo filled soft */}
+          <ellipse cx="80" cy="42" rx="40" ry="40"
+            fill="rgba(255,215,0,0.08)"/>
+
+          {/* Body / saree */}
+          <ellipse cx="80" cy="148" rx="46" ry="38"
+            fill="url(#sareeGrad)" opacity="0.9"/>
+
+          {/* Neck */}
+          <rect x="72" y="88" width="16" height="18"
+            rx="8" fill="url(#skinGrad)"/>
+
+          {/* Face */}
+          <ellipse cx="80" cy="72" rx="28" ry="30"
+            fill="url(#skinGrad)"/>
+
+          {/* Hair */}
+          <ellipse cx="80" cy="50" rx="28" ry="18"
+            fill="#2C1810"/>
+          <ellipse cx="55" cy="68" rx="8" ry="16"
+            fill="#2C1810"/>
+          <ellipse cx="105" cy="68" rx="8" ry="16"
+            fill="#2C1810"/>
+
+          {/* Hair bun / juda */}
+          <ellipse cx="80" cy="38" rx="12" ry="10"
+            fill="#2C1810"/>
+          <circle cx="80" cy="30" r="5"
+            fill="#FFD700"/>
+
+          {/* Bindi */}
+          <circle cx="80" cy="60" r="3"
+            fill="#FF4444"/>
+
+          {/* Eyes */}
+          <ellipse cx="70" cy="70" rx="5" ry="4"
+            fill="white"/>
+          <ellipse cx="90" cy="70" rx="5" ry="4"
+            fill="white"/>
+          <circle cx="71" cy="70" r="3"
+            fill="#2C1810"/>
+          <circle cx="91" cy="70" r="3"
+            fill="#2C1810"/>
+          <circle cx="72" cy="69" r="1"
+            fill="white"/>
+          <circle cx="92" cy="69" r="1"
+            fill="white"/>
+
+          {/* Eyebrows */}
+          <path d="M64 64 Q70 61 76 64"
+            stroke="#2C1810" strokeWidth="2"
+            fill="none" strokeLinecap="round"/>
+          <path d="M84 64 Q90 61 96 64"
+            stroke="#2C1810" strokeWidth="2"
+            fill="none" strokeLinecap="round"/>
+
+          {/* Smile */}
+          <path d="M73 82 Q80 88 87 82"
+            stroke="#C27B5A" strokeWidth="2"
+            fill="none" strokeLinecap="round"/>
+
+          {/* Nose */}
+          <ellipse cx="80" cy="77" rx="2" ry="1.5"
+            fill="#C27B5A" opacity="0.6"/>
+
+          {/* Earrings */}
+          <circle cx="52" cy="74" r="5"
+            fill="#FFD700" opacity="0.9"/>
+          <circle cx="108" cy="74" r="5"
+            fill="#FFD700" opacity="0.9"/>
+
+          {/* Necklace */}
+          <path d="M66 98 Q80 106 94 98"
+            stroke="#FFD700" strokeWidth="2.5"
+            fill="none" strokeLinecap="round"/>
+
+          {/* Veena / book hint (knowledge symbol) */}
+          <rect x="96" y="110" width="22" height="16"
+            rx="3" fill="#F5DEB3" opacity="0.9"/>
+          <line x1="98" y1="115"
+            x2="116" y2="115"
+            stroke="#8B4513" strokeWidth="1"/>
+          <line x1="98" y1="119"
+            x2="116" y2="119"
+            stroke="#8B4513" strokeWidth="1"/>
+          <text x="99" y="124"
+            fontSize="7" fill="#8B4513"
+            fontWeight="bold">ABC</text>
+
+          {/* Lotus in other hand */}
+          <circle cx="44" cy="118" r="8"
+            fill="#FF9EAF" opacity="0.8"/>
+          <circle cx="44" cy="118" r="4"
+            fill="#FFD700"/>
+
+          {/* Saree gold border */}
+          <ellipse cx="80" cy="148" rx="46" ry="38"
+            fill="none"
+            stroke="#FFD700"
+            strokeWidth="2"
+            opacity="0.6"/>
+
+        </svg>
+      </div>
+
+      {/* App name */}
+      <div style={{
+        fontSize: 32,
+        fontWeight: 900,
+        letterSpacing: -0.5,
+        animation: "floatUp 1s 0.3s ease both"
+      }}>
+        <span style={{ color: "#E07A5F" }}>
+          Easy
+        </span>
+        <span style={{ color: "#2D6A4F" }}>
+          {" "}English
+        </span>
+      </div>
+
+      {/* Tagline */}
+      <div style={{
+        fontSize: 15,
+        color: "#666",
+        marginTop: 8,
+        letterSpacing: 0.3,
+        animation: "floatUp 1s 0.5s ease both"
+      }}>
+        with Coach VANI 🤖
+      </div>
+
+      {/* Subtitle */}
+      <div style={{
+        fontSize: 13,
+        color: "#999",
+        marginTop: 6,
+        fontStyle: "italic",
+        animation: "floatUp 1s 0.7s ease both"
+      }}>
+        English learning comes alive!
+      </div>
+
+      {/* Bottom wave */}
+      <div style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 80,
+        background:
+          "linear-gradient(to top," +
+          "rgba(139,47,201,0.15), transparent)"
+      }} />
+
+      {/* Loading dots */}
+      <div style={{
+        position: "absolute",
+        bottom: 40,
+        display: "flex",
+        gap: 8
+      }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            width: 8, height: 8,
+            borderRadius: "50%",
+            background: "#8B2FC9",
+            animation:
+              `dot 1.2s ${i*0.2}s` +
+              ` ease-in-out infinite`
+          }} />
+        ))}
+      </div>
+
+    </div>
+  );
+}
+
+interface OpeningScreenProps {
+  phoneNumber: string;
+  setPhoneNumber: (val: string) => void;
+  otpSent: boolean;
+  setOtpSent: (val: boolean) => void;
+  otpValue: string;
+  setOtpValue: (val: string) => void;
+  onContinue: () => void;
+  onShowTerms: () => void;
+  onShowPrivacy: () => void;
+}
+
+// ── Opening / Login Screen ────────────────────
+function OpeningScreen({
+  phoneNumber, setPhoneNumber,
+  otpSent, setOtpSent,
+  otpValue, setOtpValue,
+  onContinue, onShowTerms, onShowPrivacy
+}: OpeningScreenProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleGetOTP = () => {
+    if (phoneNumber.length < 10) return;
+    setLoading(true);
+    setTimeout(() => {
+      setOtpSent(true);
+      setLoading(false);
+    }, 1200);
+  };
+
+  const handleVerifyOTP = () => {
+    if (otpValue.length < 4) return;
+    // In production connect to real OTP service
+    // For personal project: any 4+ digit OTP
+    onContinue();
+  };
+
+  return (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      background: "#F0F4FF",
+      display: "flex",
+      flexDirection: "column",
+      overflowY: "auto",
+      zIndex: 998
+    }} className="no-scrollbar">
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity:0; transform:translateY(16px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+      `}</style>
+
+      {/* Hero image area */}
+      <div style={{
+        position: "relative",
+        height: 250,
+        overflow: "hidden",
+        background:
+          "linear-gradient(135deg," +
+          "#C8E6FF, #E8D5FF)",
+        flexShrink: 0
+      }}>
+        {/* Sparky-style: people learning */}
+        <img
+          src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&q=80"
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.85
+          }}
+        />
+
+        {/* App name overlay */}
+        <div style={{
+          position: "absolute",
+          top: 20,
+          left: 0, right: 0,
+          textAlign: "center"
+        }}>
+          <div style={{
+            fontSize: 28,
+            fontWeight: 900,
+            letterSpacing: -0.5
+          }}>
+            <span style={{ color: "#E07A5F" }}>
+              Easy
+            </span>
+            <span style={{ color: "#fff",
+              textShadow:
+                "0 2px 8px rgba(0,0,0,0.3)" }}>
+              {" "}English
+            </span>
+          </div>
+        </div>
+
+        {/* Trusted badge */}
+        <div style={{
+          position: "absolute",
+          bottom: 0, left: 0, right: 0,
+          background: "rgba(30,30,30,0.75)",
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10
+        }}>
+          <span style={{ fontSize: 14 }}>
+            ⭐⭐⭐⭐⭐
+          </span>
+          <span style={{
+            color: "white",
+            fontSize: 11,
+            fontWeight: 600
+          }}>
+            English learning comes alive!
+          </span>
+        </div>
+      </div>
+
+      {/* Login card */}
+      <div style={{
+        flex: 1,
+        background: "white",
+        borderRadius: "24px 24px 0 0",
+        marginTop: -16,
+        padding: "24px 20px 32px",
+        animation: "fadeIn 0.5s ease forwards",
+        position: "relative",
+        zIndex: 10
+      }}>
+
+        {/* Heading */}
+        <div style={{
+          textAlign: "center",
+          marginBottom: 20
+        }}>
+          <div style={{
+            fontSize: 24,
+            fontWeight: 950,
+            color: "#1A1A1A",
+            letterSpacing: "-0.5px"
+          }}>
+            Speak and Learn
+          </div>
+          <div style={{
+            fontSize: 14,
+            color: "#777",
+            marginTop: 4,
+            fontWeight: "600"
+          }}>
+            with your AI Coach VANI
+          </div>
+          {/* Carousel dots */}
+          <div style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 6,
+            marginTop: 10
+          }}>
+            <div style={{
+              width: 8, height: 8,
+              borderRadius: "50%",
+              background: "#ccc"
+            }} />
+            <div style={{
+              width: 8, height: 8,
+              borderRadius: "50%",
+              background: "#8B2FC9"
+            }} />
+          </div>
+        </div>
+
+        {/* Phone input row */}
+        {!otpSent ? (
+          <>
+            <div style={{
+              display: "flex",
+              gap: 10,
+              marginBottom: 14
+            }}>
+              {/* Country code */}
+              <div style={{
+                background: "#F5F5F5",
+                borderRadius: 12,
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flexShrink: 0,
+                border: "1.5px solid #E8E8E8"
+              }}>
+                <span style={{ fontSize: 18 }}>
+                  🇮🇳
+                </span>
+                <span style={{
+                  fontWeight: 700,
+                  fontSize: 14
+                }}>+91</span>
+              </div>
+
+              {/* Phone number input */}
+              <div style={{
+                flex: 1,
+                background: "#F5F5F5",
+                borderRadius: 12,
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                border: "1.5px solid #E8E8E8"
+              }}>
+                <span style={{ fontSize: 16 }}>
+                  📱
+                </span>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={phoneNumber}
+                  onChange={e =>
+                    setPhoneNumber(
+                      e.target.value
+                        .replace(/\D/g, "")
+                    )
+                  }
+                  placeholder="Phone Number"
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    outline: "none",
+                    fontSize: 14,
+                    flex: 1,
+                    fontFamily: "inherit",
+                    fontWeight: "bold"
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Get OTP button */}
+            <button
+              onClick={handleGetOTP}
+              disabled={
+                phoneNumber.length < 10 ||
+                loading
+              }
+              style={{
+                width: "100%",
+                background:
+                  phoneNumber.length < 10
+                    ? "#ccc"
+                    : "linear-gradient(135deg," +
+                      "#E07A5F,#C85A3F)",
+                border: "none",
+                borderRadius: 14,
+                padding: "14px",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor:
+                  phoneNumber.length < 10
+                    ? "not-allowed"
+                    : "pointer",
+                marginBottom: 14,
+                transition: "all 0.2s",
+                letterSpacing: 0.3
+              }}>
+              {loading
+                ? "Sending OTP..."
+                : "Get OTP"}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* OTP input */}
+            <div style={{
+              textAlign: "center",
+              marginBottom: 14
+            }}>
+              <div style={{
+                fontSize: 12,
+                color: "#555",
+                marginBottom: 10,
+                fontWeight: "600"
+              }}>
+                OTP sent to +91 {phoneNumber}
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                value={otpValue}
+                onChange={e =>
+                  setOtpValue(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="Enter OTP"
+                style={{
+                  width: "100%",
+                  border: "2px solid #8B2FC9",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  textAlign: "center",
+                  outline: "none",
+                  letterSpacing: 4,
+                  fontFamily: "inherit",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+            <button
+              onClick={handleVerifyOTP}
+              style={{
+                width: "100%",
+                background:
+                  "linear-gradient(135deg," +
+                  "#8B2FC9,#6A1E9E)",
+                border: "none",
+                borderRadius: 14,
+                padding: "14px",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                marginBottom: 14,
+                letterSpacing: 0.3
+              }}>
+              Verify & Continue
+            </button>
+            <button
+              onClick={() => setOtpSent(false)}
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                color: "#888",
+                fontSize: 12,
+                cursor: "pointer",
+                marginBottom: 8,
+                fontWeight: "600"
+              }}>
+              ← Change number
+            </button>
+          </>
+        )}
+
+        {/* Divider */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          margin: "4px 0 14px"
+        }}>
+          <div style={{
+            flex: 1, height: 1,
+            background: "#eee"
+          }} />
+          <span style={{
+            color: "#aaa",
+            fontSize: 11,
+            fontWeight: 800
+          }}>OR</span>
+          <div style={{
+            flex: 1, height: 1,
+            background: "#eee"
+          }} />
+        </div>
+
+        {/* Google Sign In */}
+        <button
+          onClick={onContinue}
+          style={{
+            width: "100%",
+            background: "white",
+            border: "1.5px solid #E0E0E0",
+            borderRadius: 14,
+            padding: "12px",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            marginBottom: 20,
+            color: "#333"
+          }}>
+          <svg width="18" height="18"
+            viewBox="0 0 48 48" className="shrink-0">
+            <path fill="#EA4335"
+              d="M24 9.5c3.54 0 6.71 1.22
+              9.21 3.6l6.85-6.85C35.9 2.38
+              30.47 0 24 0 14.62 0 6.51 5.38
+              2.56 13.22l7.98 6.19C12.43
+              13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4"
+              d="M46.98 24.55c0-1.57-.15-3.09
+              -.38-4.55H24v9.02h12.94c-.58
+              2.96-2.26 5.48-4.78 7.18l7.73
+              6c4.51-4.18 7.09-10.36
+              7.09-17.65z"/>
+            <path fill="#FBBC05"
+              d="M10.53 28.59c-.48-1.45-.76
+              -2.99-.76-4.59s.27-3.14.76
+              -4.59l-7.98-6.19C.92 16.46 0
+              20.12 0 24c0 3.88.92 7.54 2.56
+              10.78l7.97-6.19z"/>
+            <path fill="#34A853"
+              d="M24 48c6.48 0 11.93-2.13
+              15.89-5.81l-7.73-6c-2.15
+              1.45-4.92 2.3-8.16 2.3-6.26
+              0-11.57-4.22-13.47-9.91l-7.98
+              6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Sign in with Google
+        </button>
+
+        {/* Terms text */}
+        <div style={{
+          textAlign: "center",
+          fontSize: 11,
+          color: "#888",
+          lineHeight: 1.6,
+          fontWeight: "600"
+        }}>
+          By proceeding you agree to our{" "}
+          <span
+            onClick={onShowTerms}
+            style={{
+              color: "#8B2FC9",
+              fontWeight: 800,
+              cursor: "pointer",
+              textDecoration: "underline"
+            }}>
+            Terms and Conditions
+          </span>
+          {" "}and{" "}
+          <span
+            onClick={onShowPrivacy}
+            style={{
+              color: "#8B2FC9",
+              fontWeight: 800,
+              cursor: "pointer",
+              textDecoration: "underline"
+            }}>
+            Privacy Policy
+          </span>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+interface SheetProps {
+  onClose: () => void;
+}
+
+// ── Terms & Conditions Bottom Sheet ───────────
+function TermsSheet({ onClose }: SheetProps) {
+  return (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 10010,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-end"
+    }}>
+      {/* Dark overlay */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.55)"
+        }}
+      />
+
+      {/* Sheet */}
+      <div style={{
+        position: "relative",
+        background: "white",
+        borderRadius: "22px 22px 0 0",
+        maxHeight: "88vh",
+        display: "flex",
+        flexDirection: "column",
+        zIndex: 1
+      }}>
+
+        {/* Drag handle */}
+        <div style={{
+          width: 40,
+          height: 4,
+          background: "#DDD",
+          borderRadius: 4,
+          margin: "12px auto 0"
+        }} />
+
+        {/* Scrollable content */}
+        <div style={{
+          overflowY: "auto",
+          padding: "16px 24px 30px",
+          flex: 1
+        }} className="no-scrollbar">
+
+          <h2 style={{
+            fontSize: 16,
+            fontWeight: 900,
+            color: "#1A1A1A",
+            marginBottom: 20,
+            textTransform: "uppercase",
+            letterSpacing: 0.3
+          }}>
+            Terms and Conditions of Access or Use
+          </h2>
+
+          {[
+            {
+              title: "Acceptance of Terms",
+              body:
+                "By accessing and using the Easy " +
+                "English app (a personal educational " +
+                "project by an independent developer), " +
+                "you acknowledge your agreement to " +
+                "adhere to these Terms and Conditions. " +
+                "Please review these terms carefully " +
+                "as they govern your use of this app. " +
+                "If any part is not agreeable to you, " +
+                "we request that you stop using it."
+            },
+            {
+              title: "Nature of This Project",
+              body:
+                "Easy English with Coach VANI is an " +
+                "independent personal project developed " +
+                "by an individual developer. It is not " +
+                "owned or operated by any registered " +
+                "company or corporate entity. This app " +
+                "is built to help Indian learners " +
+                "improve their spoken English skills " +
+                "using AI technology."
+            },
+            {
+              title: "Subscription and Payment",
+              body:
+                "When you start the trial (₹7 for 7 " +
+                "days) or subscribe to a monthly plan, " +
+                "you agree to the applicable fee which " +
+                "will be charged via your selected " +
+                "payment method. The trial period " +
+                "grants limited access to 30% of app " +
+                "features. Monthly plans unlock up to " +
+                "70% of features. Premium plans unlock " +
+                "100% of all features including VANI " +
+                "Voice Personality Station."
+            },
+            {
+              title: "Refund and Cancellation Policy",
+              body:
+                "All payments made are non-refundable " +
+                "once processed. You may cancel your " +
+                "subscription at any time. After " +
+                "cancellation, no further charges will " +
+                "be made and you will retain access " +
+                "until the end of your current billing " +
+                "period. Cancellation can be requested " +
+                "via the My Account section within the " +
+                "app."
+            },
+            {
+              title: "AI-Generated Content",
+              body:
+                "Responses from Coach VANI are " +
+                "generated by an AI model. While every " +
+                "effort is made to ensure quality and " +
+                "accuracy, AI responses may occasionally " +
+                "contain errors. The developer does not " +
+                "guarantee 100% accuracy of all AI " +
+                "coaching advice, grammar corrections, " +
+                "or translations provided."
+            },
+            {
+              title:
+                "Translation Services",
+              body:
+                "The translation feature within this " +
+                "app translates Indian regional " +
+                "languages (Bengali, Hindi, Telugu, " +
+                "Tamil, Marathi, Odia, Punjabi, " +
+                "Gujarati, Kannada and Hinglish) " +
+                "strictly into English only. No other " +
+                "translation direction is supported. " +
+                "Translation accuracy depends on AI " +
+                "model capability and input clarity."
+            },
+            {
+              title: "User Responsibilities",
+              body:
+                "You are responsible for maintaining " +
+                "the confidentiality of your account " +
+                "and for all activities that occur " +
+                "under your account. You must not " +
+                "misuse the app, attempt to reverse " +
+                "engineer it, or use it for any " +
+                "purpose other than personal English " +
+                "language learning."
+            },
+            {
+              title:
+                "User Conduct and Prohibited Activities",
+              body:
+                "You may not use this app for any " +
+                "unlawful purpose, to harass others, " +
+                "to submit false information, to " +
+                "transmit malware, or to interfere " +
+                "with the app's security or " +
+                "functionality. Accounts found " +
+                "violating these rules may be " +
+                "suspended without refund."
+            },
+            {
+              title: "User Eligibility",
+              body:
+                "This app is intended for users aged " +
+                "13 and above. Users under 18 should " +
+                "use the app under parental or guardian " +
+                "supervision. The developer is not " +
+                "liable for misuse by underage users."
+            },
+            {
+              title:
+                "Warranty Disclaimer & Liability",
+              body:
+                "This app is provided on an as-is " +
+                "basis without warranties of any kind. " +
+                "The developer does not guarantee " +
+                "uninterrupted, error-free service. " +
+                "Use of this app is entirely at your " +
+                "own risk. The developer shall not be " +
+                "held liable for any direct, indirect, " +
+                "or consequential damages arising from " +
+                "use of this app."
+            },
+            {
+              title: "Intellectual Property",
+              body:
+                "All content, design, code, and AI " +
+                "coaching material within Easy English " +
+                "is the intellectual property of the " +
+                "developer. Unauthorised reproduction, " +
+                "distribution, or commercial use of " +
+                "any part of this app is strictly " +
+                "prohibited."
+            },
+            {
+              title: "Termination",
+              body:
+                "The developer reserves the right to " +
+                "suspend or terminate access to any " +
+                "user account that violates these " +
+                "terms. Users may also stop using the " +
+                "app at any time."
+            },
+            {
+              title: "Modifications to the Service",
+              body:
+                "Features, pricing, and content of " +
+                "this app are subject to change " +
+                "without prior notice. The developer " +
+                "is not liable for any modification, " +
+                "suspension, or discontinuation of " +
+                "any part of the service."
+            },
+            {
+              title: "Dispute Resolution",
+              body:
+                "Any disputes arising from use of " +
+                "this app shall be resolved amicably " +
+                "through direct communication. This " +
+                "app is governed by the laws of India. " +
+                "The courts of West Bengal shall have " +
+                "jurisdiction over any unresolved " +
+                "disputes."
+            },
+          ].map((section, i) => (
+            <div key={i} style={{
+              marginBottom: 16
+            }}>
+              <div style={{
+                fontWeight: 800,
+                fontSize: 13,
+                color: "#1A1A1A",
+                marginBottom: 6
+              }}>
+                {section.title}
+              </div>
+              <div style={{
+                fontSize: 12,
+                color: "#555",
+                lineHeight: 1.6,
+                textAlign: "justify"
+              }}>
+                {section.body}
+              </div>
+            </div>
+          ))}
+
+        </div>
+
+        {/* Close button */}
+        <div style={{
+          padding: "12px 24px 20px",
+          borderTop: "1px solid #F0F0F0",
+          background: "white"
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              width: "100%",
+              background:
+                "linear-gradient(135deg," +
+                "#8B2FC9,#6A1E9E)",
+              border: "none",
+              borderRadius: 14,
+              padding: "14px",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer"
+            }}>
+            I Understand & Accept
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── Privacy Policy Bottom Sheet ───────────────
+function PrivacySheet({ onClose }: SheetProps) {
+  return (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 10010,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-end"
+    }}>
+      <div
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.55)"
+        }}
+      />
+      <div style={{
+        position: "relative",
+        background: "white",
+        borderRadius: "22px 22px 0 0",
+        maxHeight: "88vh",
+        display: "flex",
+        flexDirection: "column",
+        zIndex: 1
+      }}>
+        <div style={{
+          width: 40, height: 4,
+          background: "#DDD",
+          borderRadius: 4,
+          margin: "12px auto 0"
+        }} />
+
+        <div style={{
+          overflowY: "auto",
+          padding: "16px 24px 30px",
+          flex: 1
+        }} className="no-scrollbar">
+
+          <h2 style={{
+            fontSize: 16,
+            fontWeight: 900,
+            color: "#1A1A1A",
+            marginBottom: 20,
+            textTransform: "uppercase"
+          }}>
+            Privacy Policy
+          </h2>
+
+          {[
+            {
+              title: "Our Commitment",
+              body:
+                "Easy English with Coach VANI is " +
+                "committed to protecting your privacy. " +
+                "This policy explains what information " +
+                "we collect, how we use it, and your " +
+                "rights regarding your personal data."
+            },
+            {
+              title: "Information We Collect",
+              body:
+                "We may collect your phone number or " +
+                "Google account email for login " +
+                "purposes only. We collect your in-app " +
+                "conversation data solely to provide " +
+                "the VANI coaching service. We collect " +
+                "basic usage data such as topics " +
+                "accessed and session duration to " +
+                "improve the learning experience."
+            },
+            {
+              title: "How We Use Your Data",
+              body:
+                "Your data is used only to provide " +
+                "and improve the Easy English learning " +
+                "experience. Your conversation messages " +
+                "are sent to the AI model API to " +
+                "generate VANI's coaching responses. " +
+                "We do not sell, share, or transfer " +
+                "your personal data to any third party " +
+                "for commercial purposes."
+            },
+            {
+              title: "AI and API Data Processing",
+              body:
+                "Messages you send to Coach VANI are " +
+                "processed by the API and by using this app you " +
+                "acknowledge that your messages are " +
+                "transmitted to servers " +
+                "for processing. Please review " +
+                "privacy details on how " +
+                "they handle data."
+            },
+            {
+              title: "Data Storage",
+              body:
+                "This app currently stores session " +
+                "data in your device memory only " +
+                "during active use. No personal " +
+                "conversation data is permanently " +
+                "stored on external servers by this " +
+                "app. Subscription and payment data " +
+                "is handled by the respective payment " +
+                "gateway providers."
+            },
+            {
+              title: "Your Rights",
+              body:
+                "You have the right to access, " +
+                "correct, or request deletion of your " +
+                "personal data at any time. You may " +
+                "stop using the app and request " +
+                "account deletion by contacting the " +
+                "developer directly."
+            },
+            {
+              title: "Children's Privacy",
+              body:
+                "This app is not directed to children " +
+                "under the age of 13. If you believe " +
+                "a child under 13 has used this app " +
+                "without consent, please contact us " +
+                "so we can take appropriate action."
+            },
+            {
+              title: "Changes to This Policy",
+              body:
+                "This privacy policy may be updated " +
+                "from time to time. Continued use of " +
+                "the app after changes constitutes " +
+                "acceptance of the updated policy. " +
+                "Users are encouraged to review this " +
+                "policy periodically."
+            },
+            {
+              title: "Contact",
+              body:
+                "This is a personal independent " +
+                "project. For any privacy concerns, " +
+                "queries, or data deletion requests, " +
+                "please contact the developer directly " +
+                "through the Help section within the " +
+                "app."
+            },
+          ].map((s, i) => (
+            <div key={i} style={{
+              marginBottom: 16
+            }}>
+              <div style={{
+                fontWeight: 800,
+                fontSize: 13,
+                color: "#1A1A1A",
+                marginBottom: 6
+              }}>
+                {s.title}
+              </div>
+              <div style={{
+                fontSize: 12,
+                color: "#555",
+                lineHeight: 1.6,
+                textAlign: "justify"
+              }}>
+                {s.body}
+              </div>
+            </div>
+          ))}
+
+        </div>
+
+        <div style={{
+          padding: "12px 24px 20px",
+          borderTop: "1px solid #F0F0F0",
+          background: "white"
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              width: "100%",
+              background:
+                "linear-gradient(135deg," +
+                "#E07A5F,#C85A3F)",
+              border: "none",
+              borderRadius: 14,
+              padding: "14px",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer"
+            }}>
+            Close
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
